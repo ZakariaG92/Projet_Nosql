@@ -1,10 +1,12 @@
 import com.google.gson.Gson;
 import com.opencsv.CSVReader;
 import data.Person;
+import data.order.Order;
 import okhttp3.OkHttpClient;
 
 import java.io.*;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
 import java.sql.Timestamp;
@@ -15,7 +17,7 @@ import java.util.List;
 
 public class Utility {
 
-    public static void csvToDatabase () throws IOException {
+    public static void loadCustomerCsv () throws IOException {
         Gson gson = new Gson();
         final OkHttpClient httpClient = new OkHttpClient();
         List<Person> personList = new ArrayList<>();
@@ -52,34 +54,76 @@ public class Utility {
             person.browserUsed=records.get(j+1)[7];
             person.place=Integer.parseInt( records.get(j+1)[8]);
 
+            postElasticsearch("http://localhost:9200/app2/customer/"+person.id, person);
 
 
-            URL url = new URL("http://localhost:9200/app1/customer/"+person.id);
-            HttpURLConnection con = (HttpURLConnection)url.openConnection();
-            con.setRequestMethod("POST");
-            con.setRequestProperty("Content-Type", "application/json; utf-8");
-            con.setRequestProperty("Accept", "application/json");
-            con.setDoOutput(true);
 
-            String jsonInputString = gson.toJson(person);
 
-            try(OutputStream os = con.getOutputStream()) {
-                byte[] input = jsonInputString.getBytes("utf-8");
-                os.write(input, 0, input.length);
-            }
-
-            try(BufferedReader br = new BufferedReader(
-                    new InputStreamReader(con.getInputStream(), "utf-8"))) {
-                StringBuilder response = new StringBuilder();
-                String responseLine = null;
-                while ((responseLine = br.readLine()) != null) {
-                    response.append(responseLine.trim());
-                }
-                System.out.println(response.toString());
-            }
 
         }
 
 
+    }
+
+
+    public static void postElasticsearch(String url1,Object object) throws IOException {
+        Gson gson = new Gson();
+        //URL url = new URL("http://localhost:9200/app1/customer/"+person.id);
+        URL url = new URL(url1);
+        HttpURLConnection con = (HttpURLConnection)url.openConnection();
+        con.setRequestMethod("POST");
+        con.setRequestProperty("Content-Type", "application/json; utf-8");
+        con.setRequestProperty("Accept", "application/json");
+        con.setDoOutput(true);
+
+        String jsonInputString = gson.toJson(object);
+
+        try(OutputStream os = con.getOutputStream()) {
+            byte[] input = jsonInputString.getBytes("utf-8");
+            os.write(input, 0, input.length);
+        }
+
+        try(BufferedReader br = new BufferedReader(
+                new InputStreamReader(con.getInputStream(), "utf-8"))) {
+            StringBuilder response = new StringBuilder();
+            String responseLine = null;
+            while ((responseLine = br.readLine()) != null) {
+                response.append(responseLine.trim());
+            }
+            System.out.println(response.toString());
+        }
+    }
+
+
+    public static void loadOrder(String path) throws IOException {
+
+
+        BufferedReader bufferedReader = new BufferedReader(new FileReader(path));
+        ArrayList<Order> orders = new ArrayList<Order>();
+        Gson gson = new Gson();
+
+        StringBuilder response = new StringBuilder();
+        String responseLine = null;
+        while ((responseLine = bufferedReader.readLine()) != null) {
+            response.append(responseLine.trim());
+            String json= responseLine.trim().toString();
+            Order order = gson.fromJson(json, Order.class);
+            orders.add(order);
+        }
+
+        for (int i=0; i<orders.size(); i++){
+            try {
+                postElasticsearch("http://localhost:9200/app9/order/"+orders.get(i).orderId.toString(), orders.get(i));
+                //Thread.sleep(1000);
+            }
+            catch (Exception e){
+                System.out.println("http://localhost:9200/app9/order/"+orders.get(i).orderId.toString()+" not created");
+            }
+        }
+
+
+
+
+        String str="";
     }
 }
