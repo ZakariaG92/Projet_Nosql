@@ -4,7 +4,9 @@ import com.google.gson.Gson;
 import com.opencsv.CSVReader;
 import data.Person;
 import data.order.Order;
+import data.product.BrandByProduct;
 import data.product.Product;
+import data.vendor.Vendor;
 import okhttp3.OkHttpClient;
 
 import java.io.*;
@@ -54,7 +56,7 @@ public class Utility {
             person.browserUsed=records.get(j+1)[7];
             person.place=Integer.parseInt( records.get(j+1)[8]);
 
-            postElasticsearch("http://localhost:9200/app2/customer/"+person.id, person);
+            postElasticsearch("http://localhost:9200/customer/customer/"+person.id, person);
 
 
 
@@ -113,11 +115,11 @@ public class Utility {
 
         for (int i=0; i<orders.size(); i++){
             try {
-                postElasticsearch("http://localhost:9200/app9/order/"+orders.get(i).orderId.toString(), orders.get(i));
+                postElasticsearch("http://localhost:9200/order/order/"+orders.get(i).orderId.toString(), orders.get(i));
                 //Thread.sleep(1000);
             }
             catch (Exception e){
-                System.out.println("http://localhost:9200/app9/order/"+orders.get(i).orderId.toString()+" not created");
+                System.out.println("http://localhost:9200/order/order/"+orders.get(i).orderId.toString()+" not created");
             }
         }
 
@@ -156,7 +158,7 @@ public class Utility {
             product.price=Float.parseFloat( products.get(j+1)[2]);
             product.imgUrl=products.get(j+1)[3];
 
-            postElasticsearch("http://localhost:9200/app2/customer/"+product.asin, product);
+            postElasticsearch("http://localhost:9200/product/product/"+product.asin, product);
 
 
 
@@ -164,4 +166,77 @@ public class Utility {
 
         }
     }
+
+    /*****************BrandByProduct************/
+
+    public static void loadBrandByProduct(String path) throws IOException {
+
+        Gson gson = new Gson();
+
+        List<String[]> products = new ArrayList<>();
+        try (CSVReader csvReader = new CSVReader(new FileReader(path))) {
+
+            for (int i=0; i<=csvReader.getLinesRead(); i++ )
+            {
+                products.add(csvReader.readNext());
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+
+        for (int j=0; j<products.size()-1; j++){
+
+            BrandByProduct brandByProduct = new BrandByProduct();
+            brandByProduct.brand=products.get(j)[0];
+            brandByProduct.asin=products.get(j)[1];
+
+            postElasticsearch("http://localhost:9200/brandbyproduct/brandbyproduct/"+brandByProduct.asin, brandByProduct);
+
+
+
+
+
+        }
+    }
+
+
+    /*****************Vendor************/
+
+    public static void loadVendor(String path) throws IOException {
+
+        Gson gson = new Gson();
+
+        List<String[]> vendors = new ArrayList<>();
+        try (CSVReader csvReader = new CSVReader(new FileReader(path))) {
+
+            for (int i=0; i<=csvReader.getLinesRead(); i++ )
+            {
+                vendors.add(csvReader.readNext());
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+
+        for (int j=0; j<vendors.size()-2; j++){
+
+            Vendor vendor = new Vendor();
+            vendor.vendor=vendors.get(j+1)[0];
+            vendor.country=vendors.get(j+1)[1];
+            vendor.industry=vendors.get(j+1)[2];
+
+            postElasticsearch("http://localhost:9200/vendor/vendor/"+vendor.vendor, vendor);
+
+
+
+
+
+        }
+
+    }
+
+
 }

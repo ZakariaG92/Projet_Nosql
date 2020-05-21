@@ -15,8 +15,10 @@ import java.util.*;
 public class Main {
 
     public static void main(String[] args) throws IOException, ParseException {
-        Utility.loadProduct("C:\\Users\\Zakaria\\Documents\\MIAGE\\PROJET_NOSQL_2019_2020\\DATA\\Product\\Product.csv");
 
+      //  Utility.loadProduct("C:\\Users\\Zakaria\\Documents\\MIAGE\\PROJET_NOSQL_2019_2020\\DATA\\Product\\Product.csv");
+       // Utility.loadBrandByProduct("C:\\Users\\Zakaria\\Documents\\MIAGE\\PROJET_NOSQL_2019_2020\\DATA\\Product\\BrandByProduct.csv");
+        Utility.loadVendor("C:\\Users\\Zakaria\\Documents\\MIAGE\\PROJET_NOSQL_2019_2020\\DATA\\Vendor\\Vendor.csv");
     }
 
 
