@@ -1,7 +1,10 @@
+package utility;
+
 import com.google.gson.Gson;
 import com.opencsv.CSVReader;
 import data.Person;
 import data.order.Order;
+import data.product.Product;
 import okhttp3.OkHttpClient;
 
 import java.io.*;
@@ -19,9 +22,6 @@ public class Utility {
 
     public static void loadCustomerCsv () throws IOException {
         Gson gson = new Gson();
-        final OkHttpClient httpClient = new OkHttpClient();
-        List<Person> personList = new ArrayList<>();
-        List<String[]> allRecords = new ArrayList<>();
 
         List<String[]> records = new ArrayList<>();
         try (CSVReader csvReader = new CSVReader(new FileReader("src/main/resources/person.csv"))) {
@@ -125,5 +125,43 @@ public class Utility {
 
 
         String str="";
+    }
+
+
+    /*********************products***************/
+
+
+    public static void loadProduct(String path) throws IOException {
+
+        Gson gson = new Gson();
+
+        List<String[]> products = new ArrayList<>();
+        try (CSVReader csvReader = new CSVReader(new FileReader(path))) {
+
+            for (int i=0; i<=csvReader.getLinesRead(); i++ )
+            {
+                products.add(csvReader.readNext());
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+
+        for (int j=0; j<products.size()-2; j++){
+
+            Product product = new Product();
+            product.asin=products.get(j+1)[0];
+            product.title=products.get(j+1)[1];
+            product.price=Float.parseFloat( products.get(j+1)[2]);
+            product.imgUrl=products.get(j+1)[3];
+
+            postElasticsearch("http://localhost:9200/app2/customer/"+product.asin, product);
+
+
+
+
+
+        }
     }
 }
