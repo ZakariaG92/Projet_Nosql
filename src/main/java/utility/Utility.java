@@ -6,6 +6,7 @@ import data.Person;
 import data.order.Order;
 import data.product.BrandByProduct;
 import data.product.Product;
+import data.socialNetwork.PersonKnowsPerson;
 import data.vendor.Vendor;
 import okhttp3.OkHttpClient;
 
@@ -237,6 +238,50 @@ public class Utility {
         }
 
     }
+
+
+    /**************************Social Network***************/
+
+/**************************PersonKnowsPerson***************************/
+
+public static void loadPersonKnowsPerson(String path) throws IOException {
+
+    Gson gson = new Gson();
+
+    List<String[]> personsConnexion = new ArrayList<>();
+    try (CSVReader csvReader = new CSVReader(new FileReader(path))) {
+
+        for (int i=0; i<=csvReader.getLinesRead(); i++ )
+        {
+            personsConnexion.add(csvReader.readNext());
+        }
+    } catch (IOException e) {
+        e.printStackTrace();
+    }
+
+
+
+    for (int j=0; j<personsConnexion.size()-2; j++){
+
+        LocalDateTime dateTime = LocalDateTime.parse(personsConnexion.get(j+1)[2].substring(0,19));
+        Timestamp timestamp = Timestamp.valueOf(dateTime);
+
+        PersonKnowsPerson personKnowsPerson = new PersonKnowsPerson();
+        personKnowsPerson.personId1=Long.parseLong(personsConnexion.get(j+1)[0]);
+        personKnowsPerson.personId2=Long.parseLong(personsConnexion.get(j+1)[1]);
+        personKnowsPerson.creationDate=timestamp.toString();
+
+
+        postElasticsearch("http://localhost:9200/personknowsperson/personknowsperson", personKnowsPerson);
+
+
+
+
+
+    }
+
+}
+
 
 
 }
