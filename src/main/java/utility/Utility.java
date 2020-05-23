@@ -204,13 +204,12 @@ public class Utility {
 			while (sc.hasNext()) {
 				if (!skipFirst) {
 					skipFirst = true;
-					break;
+					continue;
 				}
 				String[] trimmed = sc.nextLine().split(Pattern.quote("|"));
 				String json = "{\"person.id\":\"" + trimmed[0] + "\", \"tag.id\" : \" +trimmed[0]+ \"}";
 
 				postElasticsearch("http://localhost:9200/personTag/_doc/" + i, null, json);
-
 				i++;
 			}
 
@@ -230,8 +229,8 @@ public class Utility {
 			int i = 0;
 			boolean skipFirst = false;
 			Gson gson = new Gson();
-			//System.out.println(sc.hasNext());
 			while (sc.hasNext()) {
+				System.out.println("TEST");
 				if (!skipFirst) {
 					skipFirst = true;
 					break;
@@ -240,9 +239,8 @@ public class Utility {
 				String[] trimmed = sc.nextLine().split(Pattern.quote("|"));
 				Post post = new Post(trimmed[0], trimmed[2], trimmed[3], trimmed[4], trimmed[5], trimmed[6],
 						Integer.parseInt(trimmed[7]));
-				//System.out.println("TEST");
 				System.out.println(gson.toJson(post));
-				//postElasticsearch("http://localhost:9200/personTag/_doc/" + i, null, json);
+
 				i++;
 			}
 
