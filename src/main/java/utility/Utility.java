@@ -225,17 +225,16 @@ public class Utility {
 
 			int i = 0;
 			Gson gson = new Gson();
+			String json;
 			sc.nextLine();
 			while (sc.hasNext()) {
 				String[] trimmed = sc.nextLine().split(Pattern.quote("|"));
 
 				Post post = new Post(trimmed[0], trimmed[2], trimmed[3], trimmed[4], trimmed[5], trimmed[6],
 						Integer.parseInt(trimmed[7]));
-				System.out.println(gson.toJson(post));
+				json = gson.toJson(post);
+				postElasticsearch("http://localhost:9200/posts/_doc/" + i, null, json);
 				i++;
-
-				if (i == 7)
-					break;
 			}
 			bufferedReader.close();
 			sc.close();
