@@ -200,16 +200,13 @@ public class Utility {
 			Scanner sc = new Scanner(bufferedReader);
 
 			int i = 0;
-			boolean skipFirst = false;
+			sc.nextLine();
 			while (sc.hasNext()) {
-				if (!skipFirst) {
-					skipFirst = true;
-					continue;
-				}
 				String[] trimmed = sc.nextLine().split(Pattern.quote("|"));
 				String json = "{\"person.id\":\"" + trimmed[0] + "\", \"tag.id\" : \" +trimmed[0]+ \"}";
 
 				postElasticsearch("http://localhost:9200/personTag/_doc/" + i, null, json);
+				System.out.println(i);
 				i++;
 			}
 
@@ -227,23 +224,19 @@ public class Utility {
 			Scanner sc = new Scanner(bufferedReader);
 
 			int i = 0;
-			boolean skipFirst = false;
 			Gson gson = new Gson();
+			sc.nextLine();
 			while (sc.hasNext()) {
-				System.out.println("TEST");
-				if (!skipFirst) {
-					skipFirst = true;
-					break;
-				}
-
 				String[] trimmed = sc.nextLine().split(Pattern.quote("|"));
+
 				Post post = new Post(trimmed[0], trimmed[2], trimmed[3], trimmed[4], trimmed[5], trimmed[6],
 						Integer.parseInt(trimmed[7]));
 				System.out.println(gson.toJson(post));
-
 				i++;
-			}
 
+				if (i == 7)
+					break;
+			}
 			bufferedReader.close();
 			sc.close();
 
