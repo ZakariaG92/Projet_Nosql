@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Scanner;
+import java.util.regex.Pattern;
 
 import org.json.JSONObject;
 import org.json.XML;
@@ -25,6 +26,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.opencsv.CSVReader;
 
+import data.Feedback;
 import data.Person;
 import data.order.Order;
 import okhttp3.OkHttpClient;
@@ -65,8 +67,9 @@ public class Utility {
 			person.browserUsed = records.get(j + 1)[7];
 			person.place = Integer.parseInt(records.get(j + 1)[8]);
 
-			postElasticsearch("http://localhost:9200/app2/customer/" + person.id, person, null);
+			postElasticsearch("http://localhost:9200/customer/_doc/" + person.id, person, null);
 
+			System.out.println("Add " + j);
 		}
 
 	}
@@ -99,7 +102,7 @@ public class Utility {
 			while ((responseLine = br.readLine()) != null) {
 				response.append(responseLine.trim());
 			}
-			System.out.println(response.toString());
+			//System.out.println(response.toString());
 		}
 	}
 
@@ -156,9 +159,9 @@ public class Utility {
 					JsonObject t = (JsonObject) it.next();
 					try {
 						System.out.println(t.toString());
-						postElasticsearch("http://localhost:9200/app2/invoices/" + i, null, t.toString());
+						postElasticsearch("http://localhost:9200/" + name + "/_doc/" + i, null, t.toString());
 						i++;
-					} catch (IOException e) {
+					} catch (Exception e) {
 						e.printStackTrace();
 					}
 				}
@@ -168,5 +171,52 @@ public class Utility {
 			e.printStackTrace();
 		}
 
+	}
+
+	public static void loadFeedback(String path) {
+		try {
+			BufferedReader bufferedReader = new BufferedReader(new FileReader(path));
+			Scanner sc = new Scanner(bufferedReader);
+			int i = 0;
+			while (sc.hasNext()) {
+				String[] trimmed = sc.nextLine().split(Pattern.quote("|"));
+				Feedback toSend = new Feedback(trimmed[0], trimmed[1], trimmed[0]);
+				System.out.println(toSend.toJSON());
+				postElasticsearch("http://localhost:9200/feedback/_doc/" + i, null, toSend.toJSON());
+			}
+
+			bufferedReader.close();
+			sc.close();
+
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
+	public static void loadPersonHasInterestTag(String path) {
+		try {
+			BufferedReader bufferedReader = new BufferedReader(new FileReader(path));
+			Scanner sc = new Scanner(bufferedReader);
+
+			int i = 0;
+			boolean skipFirst = false;
+			while (sc.hasNext()) {
+				if (!skipFirst) {
+					skipFirst = true;
+					break;
+				}
+				String[] trimmed = sc.nextLine().split(Pattern.quote("|"));
+				String json = "{\"person.id\":\"" + trimmed[0] + "\", \"tag.id\" : \" +trimmed[0]+ \"}";
+
+				postElasticsearch("http://localhost:9200/personTag/_doc/" + i, null, json);
+			}
+
+			bufferedReader.close();
+			sc.close();
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 }
