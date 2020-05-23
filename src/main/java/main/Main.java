@@ -18,7 +18,8 @@ public class Main {
 		/*Utility.loadPersonHasInterestTag(
 				"C:\\Users\\Moussaoui\\Documents\\cours-univ-ecole\\S8\\BigData\\PROJET_NOSQL_2019_2020\\DATA\\SocialNetwork\\person_hasInterest_tag_0_0.csv");*/
 
-		Utility.loadCustomerCsv();
+		Utility.loadPosts(
+				"C:\\Users\\Moussaoui\\Documents\\cours-univ-ecole\\S8\\BigData\\PROJET_NOSQL_2019_2020\\DATA\\SocialNetwork\\post_0_0.csv");
 
 	}
 

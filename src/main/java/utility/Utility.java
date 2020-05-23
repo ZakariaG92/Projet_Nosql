@@ -28,6 +28,7 @@ import com.opencsv.CSVReader;
 
 import data.Feedback;
 import data.Person;
+import data.Post;
 import data.order.Order;
 import okhttp3.OkHttpClient;
 
@@ -189,7 +190,6 @@ public class Utility {
 			sc.close();
 
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -210,6 +210,40 @@ public class Utility {
 				String json = "{\"person.id\":\"" + trimmed[0] + "\", \"tag.id\" : \" +trimmed[0]+ \"}";
 
 				postElasticsearch("http://localhost:9200/personTag/_doc/" + i, null, json);
+
+				i++;
+			}
+
+			bufferedReader.close();
+			sc.close();
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public static void loadPosts(String path) {
+		try {
+			BufferedReader bufferedReader = new BufferedReader(new FileReader(path));
+			Scanner sc = new Scanner(bufferedReader);
+
+			int i = 0;
+			boolean skipFirst = false;
+			Gson gson = new Gson();
+			//System.out.println(sc.hasNext());
+			while (sc.hasNext()) {
+				if (!skipFirst) {
+					skipFirst = true;
+					break;
+				}
+
+				String[] trimmed = sc.nextLine().split(Pattern.quote("|"));
+				Post post = new Post(trimmed[0], trimmed[2], trimmed[3], trimmed[4], trimmed[5], trimmed[6],
+						Integer.parseInt(trimmed[7]));
+				//System.out.println("TEST");
+				System.out.println(gson.toJson(post));
+				//postElasticsearch("http://localhost:9200/personTag/_doc/" + i, null, json);
+				i++;
 			}
 
 			bufferedReader.close();
