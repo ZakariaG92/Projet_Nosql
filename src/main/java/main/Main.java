@@ -1,9 +1,7 @@
 package main;
 
 import java.io.IOException;
-import java.text.ParseException;
-
-import utility.Utility;;
+import java.text.ParseException;;
 
 public class Main {
 
@@ -16,7 +14,12 @@ public class Main {
 		//Utility.addPersonToPosts(
 		//		"C:\\Users\\Moussaoui\\Documents\\cours-univ-ecole\\S8\\BigData\\PROJET_NOSQL_2019_2020\\DATA\\SocialNetwork\\post_hasCreator_person_0_0.csv");
 
-		Utility.searchPosts("2010-01-01", "2012-01-01");
+		//Utility.loadPersonKnowsPerson(
+		//		"C:\\Users\\Moussaoui\\Documents\\cours-univ-ecole\\S8\\BigData\\PROJET_NOSQL_2019_2020\\DATA\\SocialNetwork\\person_knows_person_0_0.csv");
+
+		//Utility.query10("2010-01-01", "2012-01-01");
+
+		//Utility.query6("8796093023726", "8796093027528");
 	}
 
 	/*

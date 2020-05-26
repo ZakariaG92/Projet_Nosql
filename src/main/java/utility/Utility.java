@@ -13,6 +13,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Iterator;
@@ -210,6 +211,30 @@ public class Utility {
 		}
 	}
 
+	public static void loadPersonKnowsPerson(String path) {
+		try {
+			BufferedReader bufferedReader = new BufferedReader(new FileReader(path));
+			Scanner sc = new Scanner(bufferedReader);
+
+			int i = 0;
+			sc.nextLine();
+			while (sc.hasNext()) {
+				String[] trimmed = sc.nextLine().split(Pattern.quote("|"));
+				String json = "{\"personOne\":\"" + trimmed[0] + "\", \"personTwo\" : \"" + trimmed[1] + "\", "
+						+ "\"creationDate\":\"" + trimmed[2] + "\"}";
+
+				elasticsearch("http://localhost:9200/relations/_doc/" + i, "POST", null, json);
+				i++;
+			}
+
+			bufferedReader.close();
+			sc.close();
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
 	public static void loadPersonHasInterestTag(String path) {
 		try {
 			BufferedReader bufferedReader = new BufferedReader(new FileReader(path));
@@ -219,7 +244,7 @@ public class Utility {
 			sc.nextLine();
 			while (sc.hasNext()) {
 				String[] trimmed = sc.nextLine().split(Pattern.quote("|"));
-				String json = "{\"person.id\":\"" + trimmed[0] + "\", \"tag.id\" : \" +trimmed[0]+ \"}";
+				String json = "{\"person.id\":\"" + trimmed[0] + "\", \"tag.id\" : \"" + trimmed[1] + "\"}";
 
 				elasticsearch("http://localhost:9200/personTag/_doc/" + i, "POST", null, json);
 				System.out.println(i);
@@ -294,7 +319,7 @@ public class Utility {
 		}
 	}
 
-	public static void searchPosts(String startString, String endString) {
+	public static void query10(String startString, String endString) {
 		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
 		format.setLenient(true);
 		try {
@@ -398,5 +423,81 @@ public class Utility {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+	}
+
+	public static void query6(String personOne, String personTwo) {
+		ArrayList<ArrayList<String>> toVisit = new ArrayList<ArrayList<String>>();
+		ArrayList<ArrayList<String>> afterItt = new ArrayList<ArrayList<String>>();
+		ArrayList<String> visited = new ArrayList<>();
+		ArrayList<String> found = new ArrayList<>();
+
+		toVisit.add(new ArrayList<>(Arrays.asList(personOne)));
+
+		String query = "{\"size\" : 4000, \"query\" : { \"bool\" : {" + "\"must\": {\"match\" : {\"%s\": \"%s\" }}"
+				+ ", \"must_not\": {\"terms\" : {\"%s\" : %s}}}}}";
+
+		String url = "http://localhost:9200/relations/_search";
+
+		JSONObject returned;
+
+		int i = 0;
+
+		mainLoop: while (toVisit.size() != 0) {
+
+			for (ArrayList<String> list : toVisit) {
+
+				try {
+					visited.add("\"" + list.get(list.size() - 1) + "\"");
+
+					for (int i = 0; i < 2; i++) {
+						returned = new JSONObject(elasticsearch(url, "POST", null,
+								String.format(query, i == 0 ? "personOne" : "personTwo", list.get(list.size() - 1),
+										i == 0 ? "personTwo" : "personOne", visited.toString())));
+
+						if (returned.getJSONObject("hits") != null
+								&& returned.getJSONObject("hits").getJSONObject("total").getInt("value") > 0) {
+
+							Iterator itt = returned.getJSONObject("hits").getJSONArray("hits").iterator();
+
+							while (itt.hasNext()) {
+								String person = ((JSONObject) itt.next()).getJSONObject("_source")
+										.getString("personTwo");
+								ArrayList<String> toAdd = new ArrayList<String>(list);
+								toAdd.add(person);
+								if (person.equals(personTwo)) {
+									found = toAdd;
+									break mainLoop;
+								} else {
+									afterItt.add(toAdd);
+								}
+							}
+						}
+					}
+
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+
+			i++;
+
+			if (i > 30) {
+				break mainLoop;
+			}
+
+			toVisit.clear();
+			toVisit.addAll(afterItt);
+			afterItt.clear();
+		}
+
+		if (found.size() > 0) {
+			System.out.println("Aucune relation entre les deux personnes dans la limite de 30 branche");
+		} else {
+			System.out.println("La relation la plus proche entre les deux personnes est : " + found);
+		}
+	}
+
+	public static void main(String[] args) {
+
 	}
 }
