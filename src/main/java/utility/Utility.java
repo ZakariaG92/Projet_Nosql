@@ -23,6 +23,8 @@ import java.util.List;
 
 public class Utility {
 
+    private static String BASE_URL="https://c0c2020a12d44546a0a25129e7a11177.europe-west3.gcp.cloud.es.io:9243/";
+
     public static void loadCustomerCsv () throws IOException {
         Gson gson = new Gson();
 
@@ -75,6 +77,7 @@ public class Utility {
         URL url = new URL(url1);
         HttpURLConnection con = (HttpURLConnection)url.openConnection();
         con.setRequestMethod("POST");
+        con.setRequestProperty("Authorization","Basic ZWxhc3RpYzpuNWZ1NzN0cVlOMVlmVHBNSU16akVlMXI=");
         con.setRequestProperty("Content-Type", "application/json; utf-8");
         con.setRequestProperty("Accept", "application/json");
         con.setDoOutput(true);
@@ -272,7 +275,7 @@ public static void loadPersonKnowsPerson(String path) throws IOException {
         personKnowsPerson.creationDate=timestamp.toString();
 
 
-        postElasticsearch("http://localhost:9200/personknowsperson/personknowsperson", personKnowsPerson);
+        postElasticsearch(BASE_URL+"personknowspersontest/_doc", personKnowsPerson);
 
 
 
