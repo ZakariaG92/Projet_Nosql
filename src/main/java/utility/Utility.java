@@ -332,6 +332,7 @@ public static ArrayList<String> query4() throws IOException {
     ArrayList<String> commonFriends2= new ArrayList();
     ArrayList<String> commonFriends3= new ArrayList();
 
+    ArrayList<String> duplicate= new ArrayList();
 
     /********la requete qui permet de trouver les personne qui ont une facture*/
    String query="{\n" +
@@ -406,6 +407,8 @@ for (int i=0; i<aggreg.length();i++){
 
         }
 
+
+
     }
 
 
@@ -466,18 +469,35 @@ for (int i=0; i<aggreg.length();i++){
 
     }
 
-    /********on merge les 3 liste et on enléve les duplications*/
-    commonFriends.addAll(commonFriends2);
-   commonFriends.addAll(commonFriends3);
-
-   LinkedHashSet<String> hashSet = new LinkedHashSet<>(commonFriends);
-   commonFriends = new ArrayList(hashSet);
+    /********on merge les 3 liste et on ne garde que les duplications*/
 
 
+    for (int dupl1=0; dupl1< commonFriends.size(); dupl1++){
+        for (int dupl2=1; dupl2< commonFriends2.size(); dupl2++){
+            if (commonFriends.get(dupl1).equals(commonFriends2.get(dupl2))) duplicate.add(commonFriends.get(dupl1));
+        }
+    }
+
+    for (int dupl1=0; dupl1< commonFriends.size(); dupl1++){
+        for (int dupl2=1; dupl2< commonFriends3.size(); dupl2++){
+            if (commonFriends.get(dupl1).equals(commonFriends3.get(dupl2))) duplicate.add(commonFriends.get(dupl1));
+        }
+    }
+
+    for (int dupl1=0; dupl1< commonFriends2.size(); dupl1++){
+        for (int dupl2=1; dupl2< commonFriends3.size(); dupl2++){
+            if (commonFriends2.get(dupl1).equals(commonFriends3.get(dupl2))) duplicate.add(commonFriends2.get(dupl1));
+        }
+    }
+
+     LinkedHashSet<String> hashSet = new LinkedHashSet<>(duplicate);
+     duplicate = new ArrayList(hashSet);
 
 
 
-return commonFriends;
+
+String str="";
+return duplicate;
 
 
 }
