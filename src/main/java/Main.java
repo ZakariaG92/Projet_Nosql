@@ -16,10 +16,15 @@ public class Main {
 
     public static void main(String[] args) throws IOException, ParseException {
 
-      //  Utility.loadProduct("C:\\Users\\Zakaria\\Documents\\MIAGE\\PROJET_NOSQL_2019_2020\\DATA\\Product\\Product.csv");
-       // Utility.loadBrandByProduct("C:\\Users\\Zakaria\\Documents\\MIAGE\\PROJET_NOSQL_2019_2020\\DATA\\Product\\BrandByProduct.csv");
-       // Utility.loadVendor("C:\\Users\\Zakaria\\Documents\\MIAGE\\PROJET_NOSQL_2019_2020\\DATA\\Vendor\\Vendor.csv");
-        Utility.loadPersonKnowsPerson("C:\\Users\\Zakaria\\Documents\\MIAGE\\PROJET_NOSQL_2019_2020\\DATA\\SocialNetwork\\person_knows_person_0_0.csv");
+      //***//Utility.loadProduct("C:\\Users\\Zakaria\\Documents\\MIAGE\\PROJET_NOSQL_2019_2020\\DATA\\Product\\Product.csv");
+       //**// Utility.loadBrandByProduct("C:\\Users\\Zakaria\\Documents\\MIAGE\\PROJET_NOSQL_2019_2020\\DATA\\Product\\BrandByProduct.csv");
+       //**// Utility.loadVendor("C:\\Users\\Zakaria\\Documents\\MIAGE\\PROJET_NOSQL_2019_2020\\DATA\\Vendor\\Vendor.csv");
+        //**// Utility.loadPersonKnowsPerson("C:\\Users\\Zakaria\\Documents\\MIAGE\\PROJET_NOSQL_2019_2020\\DATA\\SocialNetwork\\person_knows_person_0_0.csv");
+       //**// Utility.loadCustomerCsv();
+        //Utility.loadOrder("C:\\Users\\Zakaria\\Documents\\MIAGE\\PROJET_NOSQL_2019_2020\\DATA\\Order\\Order.json");
+
+        Utility.query4();
+
     }
 
 
