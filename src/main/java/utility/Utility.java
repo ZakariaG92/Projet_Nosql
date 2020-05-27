@@ -26,10 +26,6 @@ import org.json.JSONObject;
 import org.json.XML;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.opencsv.CSVReader;
 
 import data.Feedback;
@@ -39,6 +35,8 @@ import data.order.Order;
 import okhttp3.OkHttpClient;
 
 public class Utility {
+
+	static String server = "https://c0c2020a12d44546a0a25129e7a11177.europe-west3.gcp.cloud.es.io:9243/";
 
 	public static void loadCustomerCsv() throws IOException {
 		Gson gson = new Gson();
@@ -74,8 +72,7 @@ public class Utility {
 			person.browserUsed = records.get(j + 1)[7];
 			person.place = Integer.parseInt(records.get(j + 1)[8]);
 
-			JSONObject result = new JSONObject(
-					elasticsearch("http://localhost:9200/customer/_doc/" + person.id, "POST", person, null));
+			JSONObject result = new JSONObject(elasticsearch("persons/_doc/" + person.id, "POST", person, null));
 
 			if (result.getString("result").equals("created")) {
 				System.out.println("Add " + j);
@@ -90,11 +87,13 @@ public class Utility {
 	public static String elasticsearch(String urlString, String method, Object object, String objectString)
 			throws IOException {
 		Gson gson = new Gson();
-		URL url = new URL(urlString);
+		URL url = new URL(server + urlString);
 		HttpURLConnection con = (HttpURLConnection) url.openConnection();
 		con.setRequestMethod(method);
+		con.setRequestProperty("Authorization", "Basic ZWxhc3RpYzpuNWZ1NzN0cVlOMVlmVHBNSU16akVlMXI=");
 		con.setRequestProperty("Content-Type", "application/json; utf-8");
 		con.setRequestProperty("Accept", "application/json");
+
 		con.setDoOutput(true);
 
 		if (method != "GET") {
@@ -141,47 +140,37 @@ public class Utility {
 
 		for (int i = 0; i < orders.size(); i++) {
 			try {
-				elasticsearch("http://localhost:9200/order/_doc/" + orders.get(i).orderId.toString(), "POST",
-						orders.get(i), null);
+				elasticsearch("orders/_doc/" + orders.get(i).orderId.toString(), "POST", orders.get(i), null);
 				//Thread.sleep(1000);
 			} catch (Exception e) {
-				System.out.println(
-						"http://localhost:9200/order/_doc/" + orders.get(i).orderId.toString() + " not created");
+				System.out.println("orders/_doc/" + orders.get(i).orderId.toString() + " not created");
 			}
 		}
 	}
 
-	public static void loadXml(String path, String name) {
+	public static void loadInvoices(String path, String name) {
 		try {
+			System.out.println("START");
+
 			BufferedReader bufferedReader = new BufferedReader(new FileReader(path));
-			Scanner sc = new Scanner(bufferedReader);
-			String xmlText = "";
 
-			while (sc.hasNext()) {
-				xmlText += sc.nextLine();
-			}
+			JSONObject xmlJSONObj = XML.toJSONObject(bufferedReader);
+			JSONObject p = (JSONObject) xmlJSONObj.get("Invoices");
 
-			JSONObject xmlJSONObj = XML.toJSONObject(xmlText);
-			String jsonPrettyPrintString = xmlJSONObj.toString(4);
-			JsonParser parser = new JsonParser();
-			JsonElement jsonTree = parser.parse(jsonPrettyPrintString);
+			JSONArray invoices = p.getJSONArray("Invoice.xml");
 
-			if (jsonTree.isJsonObject()) {
-				JsonObject jsonObject = jsonTree.getAsJsonObject();
-				JsonElement p = jsonObject.get("Invoices");
-				JsonArray invoices = p.getAsJsonObject().get("Invoice.xml").getAsJsonArray();
-				Iterator it = invoices.iterator();
+			System.out.println(invoices.length());
+			Iterator itt = invoices.iterator();
 
-				int i = 1;
-				while (it.hasNext()) {
-					JsonObject t = (JsonObject) it.next();
-					try {
-						System.out.println(t.toString());
-						elasticsearch("http://localhost:9200/" + name + "/_doc/" + i, "POST", null, t.toString());
-						i++;
-					} catch (Exception e) {
-						e.printStackTrace();
-					}
+			int i = 0;
+			while (itt.hasNext()) {
+				JSONObject t = (JSONObject) itt.next();
+				try {
+					elasticsearch(name + "/_doc/" + i, "POST", null, t.toString());
+					System.out.println(i);
+					i++;
+				} catch (Exception e) {
+					e.printStackTrace();
 				}
 			}
 
@@ -200,7 +189,7 @@ public class Utility {
 				String[] trimmed = sc.nextLine().split(Pattern.quote("|"));
 				Feedback toSend = new Feedback(trimmed[0], trimmed[1], trimmed[0]);
 				System.out.println(toSend.toJSON());
-				elasticsearch("http://localhost:9200/feedback/_doc/" + i, "POST", null, toSend.toJSON());
+				elasticsearch("feedbacks/_doc/" + i, "POST", null, toSend.toJSON());
 			}
 
 			bufferedReader.close();
@@ -223,7 +212,7 @@ public class Utility {
 				String json = "{\"personOne\":\"" + trimmed[0] + "\", \"personTwo\" : \"" + trimmed[1] + "\", "
 						+ "\"creationDate\":\"" + trimmed[2] + "\"}";
 
-				elasticsearch("http://localhost:9200/relations/_doc/" + i, "POST", null, json);
+				elasticsearch("relations/_doc/" + i, "POST", null, json);
 				i++;
 			}
 
@@ -246,7 +235,7 @@ public class Utility {
 				String[] trimmed = sc.nextLine().split(Pattern.quote("|"));
 				String json = "{\"person.id\":\"" + trimmed[0] + "\", \"tag.id\" : \"" + trimmed[1] + "\"}";
 
-				elasticsearch("http://localhost:9200/personTag/_doc/" + i, "POST", null, json);
+				elasticsearch("personTags/_doc/" + i, "POST", null, json);
 				System.out.println(i);
 				i++;
 			}
@@ -268,14 +257,24 @@ public class Utility {
 			Gson gson = new Gson();
 			String json;
 			sc.nextLine();
+			String[] trimmed;
+			String line;
 			while (sc.hasNext()) {
-				String[] trimmed = sc.nextLine().split(Pattern.quote("|"));
-
-				Post post = new Post(trimmed[0], trimmed[2], trimmed[3], trimmed[4], trimmed[5], trimmed[6],
-						Integer.parseInt(trimmed[7]));
+				line = sc.nextLine();
+				trimmed = line.split(",");
+				int length;
+				try {
+					length = Integer.parseInt(trimmed[7]);
+				} catch (Exception e) {
+					length = 0;
+				}
+				Post post = new Post(trimmed[0], trimmed[1], trimmed[2], trimmed[3], trimmed[4], trimmed[5], trimmed[6],
+						length);
 				json = gson.toJson(post);
-				elasticsearch("http://localhost:9200/post/_doc/" + post.id, "POST", null, json);
+				elasticsearch("posts/_doc/" + post.id, "POST", null, json);
 				System.out.println(i);
+
+				i++;
 			}
 			bufferedReader.close();
 			sc.close();
@@ -294,21 +293,24 @@ public class Utility {
 			Gson gson = new Gson();
 			String json;
 			sc.nextLine();
+			String[] trimmed;
+			String postId;
+			String personId;
 			while (sc.hasNext()) {
-				String[] trimmed = sc.nextLine().split(Pattern.quote("|"));
+				trimmed = sc.nextLine().split(Pattern.quote("|"));
 
-				String postId = trimmed[0];
-				String personId = trimmed[1];
+				postId = trimmed[0];
+				personId = trimmed[1];
 
 				json = "{\"script\" : \"ctx._source.personId = '" + personId + "'\"}";
-				//System.out.println(json);
 				try {
-					elasticsearch("http://localhost:9200/post/_update/" + postId, "POST", null, json);
+					elasticsearch("posts/_update/" + postId, "POST", null, json);
 
 				} catch (IOException e) {
 					System.out.println("ERROR : " + postId);
 				}
 				System.out.println("Post " + postId + " i " + i);
+
 				i++;
 			}
 			bufferedReader.close();
@@ -361,7 +363,7 @@ public class Utility {
 					int count = object.getInt("doc_count");
 
 					JSONObject personInformations = new JSONObject(
-							elasticsearch("http://localhost:9200/customer/_doc/" + personId, "GET", null, null));
+							elasticsearch("person/_doc/" + personId, "GET", null, null));
 
 					System.out.println("***** Client avec " + count + " posts ******");
 					//System.out.println(personInformations.toString());
@@ -384,7 +386,7 @@ public class Utility {
 									+ "\"aggs\": {\"total\": {\"sum\": {\"field\": \"TotalPrice\" }}}}";
 
 							JSONObject orderInformations = new JSONObject(
-									elasticsearch("http://localhost:9200/order/_search/", "POST", null, requestOrders));
+									elasticsearch("orders/_search/", "POST", null, requestOrders));
 
 							int total = orderInformations.getJSONObject("hits").getJSONObject("total").getInt("value");
 
@@ -436,7 +438,7 @@ public class Utility {
 		String query = "{\"size\" : 4000, \"query\" : { \"bool\" : {" + "\"must\": {\"match\" : {\"%s\": \"%s\" }}"
 				+ ", \"must_not\": {\"terms\" : {\"%s\" : %s}}}}}";
 
-		String url = "http://localhost:9200/relations/_search";
+		String url = "relations/_search";
 
 		JSONObject returned;
 
@@ -449,10 +451,10 @@ public class Utility {
 				try {
 					visited.add("\"" + list.get(list.size() - 1) + "\"");
 
-					for (int i = 0; i < 2; i++) {
+					for (int j = 0; j < 2; j++) {
 						returned = new JSONObject(elasticsearch(url, "POST", null,
-								String.format(query, i == 0 ? "personOne" : "personTwo", list.get(list.size() - 1),
-										i == 0 ? "personTwo" : "personOne", visited.toString())));
+								String.format(query, j == 0 ? "personOne" : "personTwo", list.get(list.size() - 1),
+										j == 0 ? "personTwo" : "personOne", visited.toString())));
 
 						if (returned.getJSONObject("hits") != null
 								&& returned.getJSONObject("hits").getJSONObject("total").getInt("value") > 0) {
@@ -461,7 +463,7 @@ public class Utility {
 
 							while (itt.hasNext()) {
 								String person = ((JSONObject) itt.next()).getJSONObject("_source")
-										.getString("personTwo");
+										.getString(j == 0 ? "personTwo" : "personOne");
 								ArrayList<String> toAdd = new ArrayList<String>(list);
 								toAdd.add(person);
 								if (person.equals(personTwo)) {
@@ -484,13 +486,12 @@ public class Utility {
 			if (i > 30) {
 				break mainLoop;
 			}
-
 			toVisit.clear();
 			toVisit.addAll(afterItt);
 			afterItt.clear();
 		}
 
-		if (found.size() > 0) {
+		if (found.size() == 0) {
 			System.out.println("Aucune relation entre les deux personnes dans la limite de 30 branche");
 		} else {
 			System.out.println("La relation la plus proche entre les deux personnes est : " + found);
@@ -498,6 +499,6 @@ public class Utility {
 	}
 
 	public static void main(String[] args) {
-
+		Utility.query6("8796093023726", "8796093027528");
 	}
 }
