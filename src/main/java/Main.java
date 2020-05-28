@@ -23,7 +23,8 @@ public class Main {
        //**// Utility.loadCustomerCsv();
         //Utility.loadOrder("C:\\Users\\Zakaria\\Documents\\MIAGE\\PROJET_NOSQL_2019_2020\\DATA\\Order\\Order.json");
 
-        Utility.query4();
+       // Utility.query4();
+        Utility.query7("Pirma");
 
     }
 

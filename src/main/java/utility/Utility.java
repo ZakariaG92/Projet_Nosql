@@ -502,6 +502,42 @@ return duplicate;
 
 }
 
+    /**** requete 7 *****/
+public static void query7(String vendor) throws IOException {
+    ArrayList<String> products= new ArrayList<>();
+    ArrayList<String> badSales= new ArrayList<>();
+    /****recupération des produits du vendeur**/
+    String query= "{\"size\":300,\"query\":{\"bool\":{\"must\":[{\"match\":{\"brand\":\""+vendor+"\"}}]}}}";
+
+  String response= postQuery(BASE_URL+"brandbyproduct/_doc/_search",query);
+    JSONObject jsonObject = new JSONObject(response);
+    int len= jsonObject.getJSONObject("hits").getJSONArray("hits").length();
+    for (int i=0; i<len; i++){ products.add(jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getString("_id")); }
+
+    /**** fin de recupération des produits du vendeur**/
+
+    /*** calcul vente produits ***/
+
+    for (int i=0; i<products.size(); i++) {
+        String queryFirstTrimestre = "{\"size\":0,\"query\":{\"bool\":{\"must\":[{\"match\":{\"Orderline.asin\":\""+products.get(i)+"\"}}],\"filter\":[{\"range\":{\"OrderDate\":{\"gte\":\"2020-01-01\"}}},{\"range\":{\"OrderDate\":{\"lte\":\"2020-04-01\"}}}]}},\"aggs\":{\"genres\":{\"value_count\":{\"field\":\"Orderline.asin.keyword\"}}}}";
+        String querySecondTrimestre = "{\"size\":0,\"query\":{\"bool\":{\"must\":[{\"match\":{\"Orderline.asin\":\""+products.get(i)+"\"}}],\"filter\":[{\"range\":{\"OrderDate\":{\"gte\":\"2020-04-01\"}}},{\"range\":{\"OrderDate\":{\"lte\":\"2020-07-01\"}}}]}},\"aggs\":{\"genres\":{\"value_count\":{\"field\":\"Orderline.asin.keyword\"}}}}";
+        String responseFirst= postQuery(BASE_URL+"invoices/_doc/_search",queryFirstTrimestre);
+        String responseSecond= postQuery(BASE_URL+"invoices/_doc/_search",querySecondTrimestre);
+
+        JSONObject jsonFirst = new JSONObject(responseFirst);
+        JSONObject jsonSecond = new JSONObject(responseSecond);
+
+        if (jsonFirst.getJSONObject("aggregations").getJSONObject("genres").getInt("value")>jsonSecond.getJSONObject("aggregations").getJSONObject("genres").getInt("value")){badSales.add(products.get(i));}
+
+    }
+
+    String str="";
+
+
+
+
+    }
+
 
 
 }
