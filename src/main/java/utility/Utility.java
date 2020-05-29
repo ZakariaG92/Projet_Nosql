@@ -539,5 +539,56 @@ public static void query7(String vendor) throws IOException {
     }
 
 
+/**
+ * Query 3
+ * @param asiin : le produit
+ * @throws IOException
+ */
+public static void query3(String asiin) throws IOException 
+{	
+	
+   // pour stocker les personnes
+   ArrayList<String> personnes = new ArrayList<>();
+   // pour stocker les notes
+   ArrayList<Integer> notes = new ArrayList<>();
+   // pour stocker les commentaires
+   ArrayList<String> commentaires = new ArrayList<>();
+    
+   // Recuperer les personnes qui ont fait un FeedBack pour ce produit
+   String query= "{\"size\":100,\"query\":{\"bool\":{\"must\":[{\"match\":{\"assin\":\""+asiin+"\"}}]}}}";
+
+   String response= postQuery(BASE_URL+"feedbacks/_doc/_search",query);
+   JSONObject jsonObject = new JSONObject(response);
+   int len= jsonObject.getJSONObject("hits").getJSONArray("hits").length();
+   
+   for (int i=0; i<len; i++)
+   { 
+	   personnes.add(jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("personId")); 
+   }
+
+   	System.out.println("");
+   	System.out.println("********** Les personnes qui ont fait des Feedbacks pour "+asiin+" sont : **********");
+    for(String elem: personnes)
+    {
+    	 System.out.print (elem+" // ");
+    }
+    
+    for (int i=0; i<len; i++)
+    { 
+ 	   if (jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getInt("note") <= 3)
+ 	   {
+ 		  commentaires.add(jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("feedback")); 
+ 	   }
+    }
+    
+   	System.out.println("\n********** Les commentaires qui ont moins de 3 etoiles de "+asiin+" : **********");
+ 
+    for(String elem: commentaires)
+    {
+    	 System.out.println ("- "+elem);
+    }
+    
+	}
+
 
 }
