@@ -24,8 +24,9 @@ public class Main {
         //Utility.loadOrder("C:\\Users\\Zakaria\\Documents\\MIAGE\\PROJET_NOSQL_2019_2020\\DATA\\Order\\Order.json");
 
        // Utility.query4();
-       Utility.query7("Olympikus");
-       // Utility.query5("4149","Sports");
+      // Utility.query7("Olympikus");
+       Utility.query5("4149","Sports");
+
     }
 
 
