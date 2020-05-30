@@ -9,10 +9,13 @@ import data.product.BrandByProduct;
 import data.product.Product;
 import data.socialNetwork.PersonKnowsPerson;
 import data.vendor.Vendor;
+import feedback.Feedback;
+import feedback.Feedbacks;
 import okhttp3.OkHttpClient;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.awt.*;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
@@ -22,6 +25,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.List;
 
 public class Utility {
 
@@ -503,9 +507,11 @@ return duplicate;
 }
 
     /**** requete 7 *****/
-public static void query7(String vendor) throws IOException {
+public static String query7(String vendor) throws IOException {
     ArrayList<String> products= new ArrayList<>();
     ArrayList<String> badSales= new ArrayList<>();
+    ArrayList<Feedbacks> allFeedbacks= new ArrayList<>();
+    Gson gson= new Gson();
     /****recupération des produits du vendeur**/
     String query= "{\"size\":300,\"query\":{\"bool\":{\"must\":[{\"match\":{\"brand\":\""+vendor+"\"}}]}}}";
 
@@ -516,7 +522,7 @@ public static void query7(String vendor) throws IOException {
 
     /**** fin de recupération des produits du vendeur**/
 
-    /*** calcul vente produits ***/
+    /*** calcul vente produits et mettre les produits en baisse de vente dans une liste ***/
 
     for (int i=0; i<products.size(); i++) {
         String queryFirstTrimestre = "{\"size\":0,\"query\":{\"bool\":{\"must\":[{\"match\":{\"Orderline.asin\":\""+products.get(i)+"\"}}],\"filter\":[{\"range\":{\"OrderDate\":{\"gte\":\"2020-01-01\"}}},{\"range\":{\"OrderDate\":{\"lte\":\"2020-04-01\"}}}]}},\"aggs\":{\"genres\":{\"value_count\":{\"field\":\"Orderline.asin.keyword\"}}}}";
@@ -531,13 +537,218 @@ public static void query7(String vendor) throws IOException {
 
     }
 
-    String str="";
+    /*** pour tout les produits en baisse de vente on fais une requete pour avoir les feedback de moins de 3 etoiles ***/
+
+    Iterator iterator = badSales.iterator();
+    while (iterator.hasNext()){
+        String item=iterator.next().toString();
+
+     String queryBad="{\"size\":3,\"query\":{\"bool\":{\"must\":[{\"match\":{\"assin\":\""+item+"\"}}],\"filter\":[{\"range\":{\"note\":{\"lte\":\"3.0\"}}}]}}}";
+     String badSalesResponse=  postQuery(BASE_URL+"feedbacks/_doc/_search",queryBad);
+
+        JSONObject jsonBadSales = new JSONObject(badSalesResponse);
+
+        /*** on reçoit un tableau de feedback pour chaque produit et on les met dans une liste ***/
+       if (jsonBadSales.getJSONObject("hits").getJSONObject("total").getInt("value")==0){/*reviews.put(item,"pas de feedback pour ce produit");*/}
+       else {
+
+          ArrayList<Feedback> feedbacksList= new ArrayList<>();
+
+           for (int i=0;i<jsonBadSales.getJSONObject("hits").getJSONArray("hits").length(); i++){
+             int note=  jsonBadSales.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getInt("note");
+             String feedback=jsonBadSales.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("feedback");
+               Feedback feedbackObj=new Feedback();
+               feedbackObj.note=note;
+               feedbackObj.feedback=feedback;
+               feedbacksList.add(feedbackObj);
+           }
+
+           /*** on ajoute la lise contenant des feedback par produit dans une liste contenant tout les produits qui contiennent les feedbacks ***/
+          Feedbacks feedbacks = new Feedbacks();
+           feedbacks.asin=item;
+           feedbacks.feedbacks=feedbacksList;
+
+           allFeedbacks.add(feedbacks);
+
+       }
+
+    }
+
+
+    /*** on retourne tout les produits ayant des feedbacks de mois de 3 etoiles avec les commentaires des clients ***/
+return gson.toJson(allFeedbacks);
+
+
+    }
+
+
+    public static void query5(String personId, String category) throws IOException {
+    /***Author: Zakaria Gasmi***/
+        ArrayList<String> brands= new ArrayList<>();
+        ArrayList<String> products= new ArrayList<>();
+        ArrayList<String> commonFriends= new ArrayList<>();
+        ArrayList<String> commonFriends2= new ArrayList<>();
+        ArrayList<String> commonFriends3= new ArrayList<>();
+
+        /*****on cherche les marques de cette catégorie*/
+        String queryCategory="{\"size\":100,\"query\":{\"bool\":{\"should\":[{\"term\":{\"industry.keyword\":\""+category+"\"}}]}}}";
+
+        String responseCategory=  postQuery(BASE_URL+"vendor/_doc/_search",queryCategory);
+
+        JSONObject jsonObjectCategory = new JSONObject(responseCategory);
+        int returntabCategory= jsonObjectCategory.getJSONObject("hits").getJSONArray("hits").length();
+
+        for (int i = 0; i <returntabCategory ; i++) {
+            String cat=jsonObjectCategory.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("industry");
+            if (cat.equals(category))
+            {
+            brands.add(jsonObjectCategory.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("vendor"));
+            }
+        }
+
+
+
+
+
+
+    /*****on cherche les amis de cette personne*/
+
+        String queryknows= "{\"size\" : 20,\"query\":{\"bool\":{\"should\":[{\"term\":{\"personId1\":\""+personId+"\"}},{\"term\":{\"personId2\":\""+personId+"\"}}]}}}";
+        String responseKnows=  postQuery(BASE_URL+"personknowsperson/_doc/_search",queryknows);
+
+        JSONObject jsonObjectKnows = new JSONObject(responseKnows);
+        int returntab= jsonObjectKnows.getJSONObject("hits").getJSONArray("hits").length();
+
+        for (int j=0; j<returntab;j++) {
+            try {
+                Long personid1 = jsonObjectKnows.getJSONObject("hits").getJSONArray("hits").getJSONObject(j).getJSONObject("_source").getLong("personId1");
+                Long personid2 = jsonObjectKnows.getJSONObject("hits").getJSONArray("hits").getJSONObject(j).getJSONObject("_source").getLong("personId2");
+                if (personid1.toString().equals(personId)) {}//commonFriends.add(personid1.toString());
+                else commonFriends.add(personid1.toString());
+                if (personid2.toString().equals(personId)) {}//commonFriends.add(personid1.toString());
+                else commonFriends.add(personid2.toString());
+
+                LinkedHashSet<String> hashSet = new LinkedHashSet<>(commonFriends);
+                commonFriends = new ArrayList(hashSet);
+
+
+            }catch (Exception e){}
+
+        }
+
+        /********on trouve les amis des amis des personnes et on les ajoute sur une liste commonFriends2 sans duplication*/
+
+        for (int i=0; i<commonFriends.size();i++) {
+            String queryknows2= "{\"size\" : 20,\"query\":{\"bool\":{\"should\":[{\"term\":{\"personId1\":\""+commonFriends.get(i)+"\"}},{\"term\":{\"personId2\":\""+commonFriends.get(i)+"\"}}]}}}";
+            String responseKnows2=  postQuery(BASE_URL+"personknowsperson/_doc/_search",queryknows2);
+
+            JSONObject jsonObjectKnows2 = new JSONObject(responseKnows2);
+            int returntab2= jsonObjectKnows2.getJSONObject("hits").getJSONArray("hits").length();
+
+            for (int j=0; j<returntab2;j++) {
+                try {
+                    Long personid1 = jsonObjectKnows2.getJSONObject("hits").getJSONArray("hits").getJSONObject(j).getJSONObject("_source").getLong("personId1");
+                    Long personid2 = jsonObjectKnows2.getJSONObject("hits").getJSONArray("hits").getJSONObject(j).getJSONObject("_source").getLong("personId2");
+                    if (personid1.toString().equals(commonFriends.get(i))) {}//commonFriends.add(personid1.toString());
+                    else commonFriends2.add(personid1.toString());
+                    if (personid2.toString().equals(commonFriends.get(i))) {}//commonFriends.add(personid1.toString());
+                    else commonFriends2.add(personid2.toString());
+
+                    LinkedHashSet<String> hashSet = new LinkedHashSet<>(commonFriends2);
+                    commonFriends2 = new ArrayList(hashSet);
+
+
+                }catch (Exception e){}
+
+            }
+
+        }
+
+        /********on trouve les amis des amis des amis des personnes et on les ajoute sur une liste commonFriends3 sans duplication*/
+
+        for (int i=0; i<commonFriends2.size();i++) {
+            String queryknows3= "{\"size\" : 10,\"query\":{\"bool\":{\"should\":[{\"term\":{\"personId1\":\""+commonFriends2.get(i)+"\"}},{\"term\":{\"personId2\":\""+commonFriends2.get(i)+"\"}}]}}}";
+            String responseKnows3=  postQuery(BASE_URL+"personknowsperson/_doc/_search",queryknows3);
+
+            JSONObject jsonObjectKnows3 = new JSONObject(responseKnows3);
+            int returntab2= jsonObjectKnows3.getJSONObject("hits").getJSONArray("hits").length();
+
+            for (int j=0; j<returntab2;j++) {
+                try {
+                    Long personid1 = jsonObjectKnows3.getJSONObject("hits").getJSONArray("hits").getJSONObject(j).getJSONObject("_source").getLong("personId1");
+                    Long personid2 = jsonObjectKnows3.getJSONObject("hits").getJSONArray("hits").getJSONObject(j).getJSONObject("_source").getLong("personId2");
+                    if (personid1.toString().equals(commonFriends2.get(i))) {}//commonFriends.add(personid1.toString());
+                    else commonFriends3.add(personid1.toString());
+                    if (personid2.toString().equals(commonFriends2.get(i))) {}//commonFriends.add(personid1.toString());
+                    else commonFriends3.add(personid2.toString());
+
+                    LinkedHashSet<String> hashSet = new LinkedHashSet<>(commonFriends3);
+                    commonFriends3 = new ArrayList(hashSet);
+
+
+                }catch (Exception e){}
+
+            }
+            String str="";
+
+        }
+
+        /******On merge les 3 listes pour avoit tout les amis********/
+
+        commonFriends.addAll(commonFriends2);
+        commonFriends.addAll(commonFriends3);
+
+        /******on enléve les doublons********/
+        LinkedHashSet<String> hashSet = new LinkedHashSet<>(commonFriends);
+        commonFriends = new ArrayList(hashSet);
+
+
+
+        /******on récupére les produits de chaque amis et on les mets dans une liste products sans doublons********/
+        Iterator iterator= commonFriends.iterator();
+        while (iterator.hasNext()) {
+            String person=iterator.next().toString();
+
+            String queryproductFriends = "{\"size\":100,\"query\":{\"bool\":{\"should\":[{\"term\":{\"PersonId\":\""+person+"\"}}]}}}";
+            String responseProduct = postQuery(BASE_URL + "invoice/_doc/_search", queryproductFriends);
+
+            JSONObject jsonObjectProduct = new JSONObject(responseProduct);
+            int returntabProduct = jsonObjectProduct.getJSONObject("hits").getJSONArray("hits").length();
+
+            for (int i = 0; i <returntabProduct ; i++) {
+
+
+                try {
+                    int returntabProduct2 = jsonObjectProduct.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getJSONArray("Orderline").length();
+
+                    for (int j = 0; j <returntabProduct2 ; j++) {
+                        String brand = jsonObjectProduct.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getJSONArray("Orderline").getJSONObject(j).getString("brand");
+                        String asin = jsonObjectProduct.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getJSONArray("Orderline").getJSONObject(j).getString("asin");
+
+                        if ((brands.contains(brand)==true) && (products.contains(asin)==false)){products.add(asin);}
+
+                    }
+
+                }catch (Exception e){
+                    String brand = jsonObjectProduct.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getJSONObject("Orderline").getString("brand");
+                    String asin = jsonObjectProduct.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getJSONObject("Orderline").getString("asin");
+
+                    if ((brands.contains(brand)==true) && (products.contains(asin)==false)){products.add(asin);}
+                }
+
+
+
+            }
+
+        }
+
+        String str522 = "";
+
 
 
 
 
     }
-
 
 
 }
