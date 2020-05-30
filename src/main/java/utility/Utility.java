@@ -572,7 +572,6 @@ public class Utility {
     public static void query3(String asiin) throws IOException
     {
 
-        /***author : Jassim***/
 
         // pour stocker les personnes
         ArrayList<String> personnes = new ArrayList<>();
@@ -811,6 +810,58 @@ public class Utility {
 
     }
 
+    
+    public static void query8(String category) throws IOException 
+    {
+        
+    	// pour les vendeurs
+        ArrayList<String> vendeurs= new ArrayList<>();
+        // pour les prodits
+        ArrayList<String> produits= new ArrayList<>();
+
+        // recuperer les vendeurs de cette categorie
+        String requeteCategorie="{\"size\":200,\"query\":{\"bool\":{\"should\":[{\"term\":{\"industry.keyword\":\""+category+"\"}}]}}}";
+        String response=  postQuery(BASE_URL+"vendor/_doc/_search",requeteCategorie);
+
+        JSONObject jsonCategories = new JSONObject(response);
+        int lengthJsonCategories= jsonCategories.getJSONObject("hits").getJSONArray("hits").length();
+
+        for (int i = 0; i <lengthJsonCategories ; i++) {
+        	
+            String categorie=jsonCategories.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("industry");
+            
+            // si c'est bien la categorie demandee, on stock leurs vendeurs dans la liste vendeurs
+            if (categorie.equals(category))
+            {
+            	vendeurs.add(jsonCategories.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("vendor"));
+            }
+        }
+        
+        // On va recuperer tous les produits de ces vendeurs
+        for(String vend: vendeurs)
+        {
+        	
+            String query= "{\"size\":300,\"query\":{\"bool\":{\"must\":[{\"match\":{\"brand\":\""+vend+"\"}}]}}}";
+
+            String respons= postQuery(BASE_URL+"brandbyproduct/_doc/_search",query);
+            JSONObject jsonProducts = new JSONObject(respons);
+            
+            int lengthJsonProducts= jsonProducts.getJSONObject("hits").getJSONArray("hits").length();
+            for (int i=0; i<lengthJsonProducts; i++)
+            { 
+            	// Ajout dans la liste produits
+            	produits.add(jsonProducts.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getString("_id")); 
+            }
+
+        }
+        
+        for(String elem: produits)
+        {
+            System.out.println ("- "+elem);
+        }
+
+               
+    }
 
 
 }
