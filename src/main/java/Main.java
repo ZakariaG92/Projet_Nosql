@@ -27,12 +27,18 @@ public class Main {
       // Utility.query7("Olympikus");
        //Utility.query5("4149","Sports");
        
-    	//Utility.query8("Sports","2021");
+    	
         //String[] id= new String[]{"zakaria","mohamed"};
         //Utility.deleteData("vendor",id);
     	
+    	/** Parametre : (String personne) **/
+    	//Utility.query1("6597069771968");
     	
-    	Utility.query1("6597069771968");
+    	/** Parametres : (String dateDebut, String dateFin, String asiin)**/
+    	//Utility.query3("2000-01-01","2024-09-30","B003A1U3LW");
+    	
+    	/** Parametre : (String category, String annee)**/
+    	//Utility.query8("Sports","2021");
 
         String[] body={"{\n" +
                 "          \"vendor\" : \"zakaria_gasmi\",\n" +
@@ -45,7 +51,7 @@ public class Main {
                 "        }" };
 
 
-        Utility.insertData("vendor",body);
+        //Utility.insertData("vendor",body);
 
     }
 

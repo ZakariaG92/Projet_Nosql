@@ -72,53 +72,53 @@ public class Utility {
 
 
 
-/**@param index l'index pour l'insertion des données
- *@param body un tableau contenant des contenant des enregistrement, si on souhaite inserer un enregistrement,
- * on passe un tableau avec un seul body, sinon on passe un tableau de plusieurs body
- * la methode permet une insertion unique ou multiple selon le paramétre donnée*/
-    public static void insertData(String index, String[] body) throws IOException {
+	/**@param index l'index pour l'insertion des données
+	 *@param body un tableau contenant des contenant des enregistrement, si on souhaite inserer un enregistrement,
+	 * on passe un tableau avec un seul body, sinon on passe un tableau de plusieurs body
+	 * la methode permet une insertion unique ou multiple selon le paramétre donnée*/
+	public static void insertData(String index, String[] body) throws IOException {
 
-        /*Zakaria Gasmi*/
+		/*Zakaria Gasmi*/
 
-        for (int i = 0; i <body.length ; i++) {
+		for (int i = 0; i <body.length ; i++) {
 
-            Gson gson = new Gson();
-            URL url = new URL(BASE_URL+index+"/_doc/");
-            HttpURLConnection con = (HttpURLConnection)url.openConnection();
-            con.setRequestMethod("POST");
-            con.setRequestProperty("Authorization","Basic ZWxhc3RpYzpuNWZ1NzN0cVlOMVlmVHBNSU16akVlMXI=");
-            con.setRequestProperty("Content-Type", "application/json; utf-8");
-            con.setRequestProperty("Accept", "application/json");
-            con.setDoOutput(true);
+			Gson gson = new Gson();
+			URL url = new URL(BASE_URL+index+"/_doc/");
+			HttpURLConnection con = (HttpURLConnection)url.openConnection();
+			con.setRequestMethod("POST");
+			con.setRequestProperty("Authorization","Basic ZWxhc3RpYzpuNWZ1NzN0cVlOMVlmVHBNSU16akVlMXI=");
+			con.setRequestProperty("Content-Type", "application/json; utf-8");
+			con.setRequestProperty("Accept", "application/json");
+			con.setDoOutput(true);
 
-            try(OutputStream os = con.getOutputStream()) {
-                byte[] input = body[i].getBytes("utf-8");
-                os.write(input, 0, input.length);
-            }
+			try(OutputStream os = con.getOutputStream()) {
+				byte[] input = body[i].getBytes("utf-8");
+				os.write(input, 0, input.length);
+			}
 
-            try {
-                try(BufferedReader br = new BufferedReader(
-                        new InputStreamReader(con.getInputStream(), "utf-8"))) {
-                    StringBuilder response = new StringBuilder();
-                    String responseLine = null;
-                    while ((responseLine = br.readLine()) != null) {
-                        response.append(responseLine.trim());
-                    }
+			try {
+				try(BufferedReader br = new BufferedReader(
+						new InputStreamReader(con.getInputStream(), "utf-8"))) {
+					StringBuilder response = new StringBuilder();
+					String responseLine = null;
+					while ((responseLine = br.readLine()) != null) {
+						response.append(responseLine.trim());
+					}
 
-                    JSONObject jsonObject = new JSONObject(response.toString());
-
-
-                    if (jsonObject.getString("result").equals("created")) System.out.println("l'enregistrement avec identifiant "+jsonObject.getString("_id")+" à bien été créer");
-                }
-
-            } catch (Exception e){
-                System.out.println("une erreur c'est produite lors de cet création");
-            }
+					JSONObject jsonObject = new JSONObject(response.toString());
 
 
-        }
+					if (jsonObject.getString("result").equals("created")) System.out.println("l'enregistrement avec identifiant "+jsonObject.getString("_id")+" à bien été créer");
+				}
 
-    }
+			} catch (Exception e){
+				System.out.println("une erreur c'est produite lors de cet création");
+			}
+
+
+		}
+
+	}
 
 
 	public static void postElasticsearch(String url1,Object object) throws IOException {
@@ -655,19 +655,64 @@ public class Utility {
 	}
 
 
-	public static void query3(String asiin) throws IOException
+	/**
+	 * QUERY 3
+	 * @author : Jassim EL HAROUI
+	 * @param dateDebut : la date de debut
+	 * @param dateFin : la date de fin
+	 * @param asiin : le produit
+	 * @throws IOException
+	 */
+	public static void query3(String dateDebut, String dateFin, String asiin) throws IOException
 	{
-
-
-		// pour stocker les personnes
-		ArrayList<String> personnes = new ArrayList<>();
+		// pour stocker les personnes commandee ce produit pendant la periode demendee
+		ArrayList<String> personnesPeriode = new ArrayList<>();
+		// pour stocker les personnes qui ont fait des commentaires pour ce produit
+		ArrayList<String> personnesFeedback = new ArrayList<>();
 		// pour stocker les notes
 		ArrayList<Integer> notes = new ArrayList<>();
-		// pour stocker les commentaires
-		ArrayList<String> commentaires = new ArrayList<>();
 
-		// Recuperer les personnes qui ont fait un FeedBack pour ce produit
-		String query= "{\"size\":100,\"query\":{\"bool\":{\"must\":[{\"match\":{\"assin\":\""+asiin+"\"}}]}}}";
+		// pour stocker les commentaires 
+		ArrayList<String> commentaires = new ArrayList<>();
+		Set<String> setCommentaires = new HashSet<>(commentaires); /*des HashSet pour eviter les doublons*/
+
+
+		/******* DEBUT :  Recuperer les clients qui ont commande ce produit pendant cette periode *******/
+
+		// On commence par filtrer par la periode
+		String queryPeriode= "{\"size\" : 200, \"query\": {\"range\": { \"OrderDate\": { \"gte\": \""+dateDebut+"\", \"lte\" : \""+dateFin+"\" }}}}";
+
+		String responsePeriode= postQuery(BASE_URL+"order/_doc/_search",queryPeriode);
+		JSONObject jsonObjectPeriode = new JSONObject(responsePeriode);
+
+		int lenJsonObjectPeriode= jsonObjectPeriode.getJSONObject("hits").getJSONArray("hits").length();
+
+		for (int i=0; i<lenJsonObjectPeriode; i++)
+		{
+			int lenJsonObjectPeriode2 = jsonObjectPeriode.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getJSONArray("Orderline").length();
+
+			for (int j = 0; j < lenJsonObjectPeriode2 ; j++) {
+
+				// On recupere tous les produits commandee pendant cette periode
+				String asin = jsonObjectPeriode.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getJSONArray("Orderline").getJSONObject(j).getString("asin");
+
+
+				// On compare les produits de la periode avec notre produit demande en parametre
+				if (asiin.equals(asin))
+				{
+					// Si c'est notre produit, on stock ces clients dans la liste 'personnes'
+					personnesPeriode.add(jsonObjectPeriode.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("PersonId"));
+
+				}
+			}
+
+		}
+
+		/******* FIN : Recuperer les clients qui ont commande ce produit pendant cette periode *******/
+
+		/******* DEBUT :  Recuperer les personnes qui ont fait un FeedBack negatif pour ce produit *******/
+
+		String query= "{\"size\":300,\"query\":{\"bool\":{\"must\":[{\"match\":{\"assin\":\""+asiin+"\"}}]}}}";
 
 		String response= postQuery(BASE_URL+"feedbacks/_doc/_search",query);
 		JSONObject jsonObject = new JSONObject(response);
@@ -675,32 +720,47 @@ public class Utility {
 
 		for (int i=0; i<len; i++)
 		{
-			// On ajoutes les personnes
-			personnes.add(jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("personId"));
-		}
+			// Toutes les personnes qui ont fait un FeedBack pendant toutes les periodes
+			String feedback = jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("personId");
 
-		System.out.println("");
-		System.out.println("********** Les personnes qui ont fait des Feedbacks pour "+asiin+" sont : **********");
-		for(String elem: personnes)
-		{
-			System.out.print (elem+" // ");
-		}
-
-		for (int i=0; i<len; i++)
-		{
-			if (jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getInt("note") <= 3)
+			for(String elem: personnesFeedback)
 			{
-				commentaires.add(jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("feedback"));
+				// Comparer les personnes (entre la periode et le Feedback)
+				if (elem.equals(feedback))
+				{
+					// Ajouter les personnes qui ont fait un FeedBack pendant la periode demandee
+					personnesFeedback.add(jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("personId"));
+
+					// Tester si la note est moins de 3
+					if (jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getInt("note") <= 3)
+					{
+						// Ajouter les commentaires negatifs
+						setCommentaires.add(jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("feedback"));
+					}
+				}
+
 			}
 		}
 
-		System.out.println("\n********** Les commentaires qui ont moins de 3 etoiles de "+asiin+" : **********");
-
-		for(String elem: commentaires)
+		// verifier notre liste pour l'affichage
+		if (setCommentaires.isEmpty())
 		{
-			System.out.println ("- "+elem);
-		}
+			System.out.println("");
+			System.out.println("********** OUPS !! Aucune personnes n'a poster un avis negatif pour ce produit "+asiin+" entre le : "+dateDebut+" et "+dateFin+" **********");
 
+		}
+		else
+		{
+			System.out.println("\n\n********** Les commentaires qui ont moins de 3 etoiles de "+asiin+" entre le : "+dateDebut+" et "+dateFin+" sont : **********");
+
+			for(String elem: setCommentaires)
+			{
+				System.out.println ("- "+elem);
+			}
+
+			/******* FIN :  Recuperer les personnes qui ont fait un FeedBack negatif pour ce produit *******/
+
+		}
 	}
 
 
@@ -899,8 +959,9 @@ public class Utility {
 
 	/**
 	 * QUERY 8
-	 * @param category : la categorie donnee en parametre
-	 * @param annee : l'annee donnee en parametre
+	 * @author : Jassim EL HAROUI
+	 * @param category : la categorie  ==> industry dans 'vendor'
+	 * @param annee : l'annee
 	 * @throws IOException
 	 */
 	public static void query8(String category, String annee) throws IOException 
@@ -994,7 +1055,7 @@ public class Utility {
 			}
 
 		}
-		
+
 		if (totalPrice.isEmpty())
 			System.out.println("OUPS !! Cette categorie : "+category+" n'a fait aucune vente en "+annee);
 
@@ -1011,17 +1072,18 @@ public class Utility {
 
 	/**
 	 * QUERY 1
+	 * @author : Jassim EL HAROUI
 	 * @param personne : le client donne
 	 * @throws IOException
 	 */
 	public static void query1(String personne) throws IOException 
 	{
-		
+
 		// pour ses commandes
 		ArrayList<String> commandes = new ArrayList<>();
 		// pour ses commentaires
 		ArrayList<String> feedbacks = new ArrayList<>();
-				
+
 		/******* DEBUT : Trouver le profile du client souhaite /*******/
 
 		String queryProfile = "{\"size\":300,\"query\":{\"bool\":{\"must\":[{\"match\":{\"_id\":\""+personne+"\"}}]}}}";
@@ -1029,19 +1091,19 @@ public class Utility {
 		String responseProfile = postQuery(BASE_URL+"person/_doc/_search",queryProfile);
 		JSONObject jsonProfile = new JSONObject(responseProfile);
 		//System.out.println(jsonProfile.toString());
-		
+
 		// extraire son profile
 		String prenom = jsonProfile.getJSONObject("hits").getJSONArray("hits").getJSONObject(0).getJSONObject("_source").getString("firstName");		
 		String nom = jsonProfile.getJSONObject("hits").getJSONArray("hits").getJSONObject(0).getJSONObject("_source").getString("lastName");	
 		String gender = jsonProfile.getJSONObject("hits").getJSONArray("hits").getJSONObject(0).getJSONObject("_source").getString("gender");
-		
+
 		System.out.println(" ");
 		System.out.println("********* Le profile du client  : "+personne+" *********");
 		System.out.println(" ==> sexe : "+gender+", Prenom : "+prenom+", Nom : "+nom);
 		System.out.println(" ");
-		
+
 		/******* FIN : Trouver le profile du client souhaite /*******/
-		
+
 		/******* DEBUT : Trouver ses commandes et factres /*******/
 
 		String queryCommande = "{\"size\":300,\"query\":{\"bool\":{\"must\":[{\"match\":{\"PersonId\":\""+personne+"\"}}]}}}";
@@ -1049,7 +1111,7 @@ public class Utility {
 		String responseCommande = postQuery(BASE_URL+"order/_doc/_search",queryCommande);
 		JSONObject jsonCommande = new JSONObject(responseCommande);
 		//System.out.println(jsonCommande.toString());
-		
+
 		// extraire ses commandes
 		int lengthJsoCommandes= jsonCommande.getJSONObject("hits").getJSONArray("hits").length();
 
@@ -1057,14 +1119,14 @@ public class Utility {
 		{ 
 			commandes.add(jsonCommande.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("OrderId"));     		
 		}
-		
+
 		System.out.println(" ");
 		System.out.println("********* Il a fait les commandes N : *********");
 		for(String elem: commandes)
 		{
 			System.out.print (" // "+elem);
 		}	
-		
+
 		System.out.println(" ");
 		System.out.println(" ");
 		System.out.println("********* Il a les factures N : *********");
@@ -1072,9 +1134,9 @@ public class Utility {
 		{
 			System.out.print (" // "+elem);
 		}	
-		
+
 		/******* FIN : Trouver ses commandes et factres /*******/
-		
+
 		/******* DEBUT : Trouver ses commentaires /*******/
 
 		String queryFeedback= "{\"size\":100,\"query\":{\"bool\":{\"must\":[{\"match\":{\"personId\":\""+personne+"\"}}]}}}";
@@ -1082,7 +1144,7 @@ public class Utility {
 		String responseFeedback = postQuery(BASE_URL+"feedbacks/_doc/_search",queryFeedback);
 		JSONObject jsonFeedback = new JSONObject(responseFeedback);
 		//System.out.println(jsonFeedback.toString());
-		
+
 		// extraire ses commentaires
 		int lengthJsoFeedback= jsonFeedback.getJSONObject("hits").getJSONArray("hits").length();
 
@@ -1090,20 +1152,20 @@ public class Utility {
 		{ 
 			feedbacks.add(jsonFeedback.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("feedback"));     		
 		}
-		
+
 		System.out.println(" ");
 		System.out.println("********* Il a fait ces commentaires : *********");
 		for(String elem: feedbacks)
 		{
 			System.out.println (" // "+elem);
 		}	
-		
-		
-		/******* FIN : Trouver ses commentaires /*******/
-		
 
-		
+
+		/******* FIN : Trouver ses commentaires /*******/
+
+
+
 	}
-	
+
 
 }
