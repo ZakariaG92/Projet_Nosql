@@ -629,6 +629,7 @@ public class Utility {
 
 		for (int i=0; i<len; i++)
 		{
+			// On ajoutes les personnes
 			personnes.add(jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("personId"));
 		}
 
@@ -961,5 +962,102 @@ public class Utility {
 
 	}
 
+
+	/**
+	 * QUERY 1
+	 * @param personne : le client donne
+	 * @throws IOException
+	 */
+	public static void query1(String personne) throws IOException 
+	{
+		
+		// pour ses commandes
+		ArrayList<String> commandes = new ArrayList<>();
+		// pour ses commentaires
+		ArrayList<String> feedbacks = new ArrayList<>();
+				
+		/******* DEBUT : Trouver le profile du client souhaite /*******/
+
+		String queryProfile = "{\"size\":300,\"query\":{\"bool\":{\"must\":[{\"match\":{\"_id\":\""+personne+"\"}}]}}}";
+
+		String responseProfile = postQuery(BASE_URL+"person/_doc/_search",queryProfile);
+		JSONObject jsonProfile = new JSONObject(responseProfile);
+		//System.out.println(jsonProfile.toString());
+		
+		// extraire son profile
+		String prenom = jsonProfile.getJSONObject("hits").getJSONArray("hits").getJSONObject(0).getJSONObject("_source").getString("firstName");		
+		String nom = jsonProfile.getJSONObject("hits").getJSONArray("hits").getJSONObject(0).getJSONObject("_source").getString("lastName");	
+		String gender = jsonProfile.getJSONObject("hits").getJSONArray("hits").getJSONObject(0).getJSONObject("_source").getString("gender");
+		
+		System.out.println(" ");
+		System.out.println("********* Le profile du client  : "+personne+" *********");
+		System.out.println(" ==> sexe : "+gender+", Prenom : "+prenom+", Nom : "+nom);
+		System.out.println(" ");
+		
+		/******* FIN : Trouver le profile du client souhaite /*******/
+		
+		/******* DEBUT : Trouver ses commandes et factres /*******/
+
+		String queryCommande = "{\"size\":300,\"query\":{\"bool\":{\"must\":[{\"match\":{\"PersonId\":\""+personne+"\"}}]}}}";
+
+		String responseCommande = postQuery(BASE_URL+"order/_doc/_search",queryCommande);
+		JSONObject jsonCommande = new JSONObject(responseCommande);
+		//System.out.println(jsonCommande.toString());
+		
+		// extraire ses commandes
+		int lengthJsoCommandes= jsonCommande.getJSONObject("hits").getJSONArray("hits").length();
+
+		for (int i=0; i<lengthJsoCommandes; i++)
+		{ 
+			commandes.add(jsonCommande.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("OrderId"));     		
+		}
+		
+		System.out.println(" ");
+		System.out.println("********* Il a fait les commandes N : *********");
+		for(String elem: commandes)
+		{
+			System.out.print (" // "+elem);
+		}	
+		
+		System.out.println(" ");
+		System.out.println(" ");
+		System.out.println("********* Il a les factures N : *********");
+		for(String elem: commandes)
+		{
+			System.out.print (" // "+elem);
+		}	
+		
+		/******* FIN : Trouver ses commandes et factres /*******/
+		
+		/******* DEBUT : Trouver ses commentaires /*******/
+
+		String queryFeedback= "{\"size\":100,\"query\":{\"bool\":{\"must\":[{\"match\":{\"personId\":\""+personne+"\"}}]}}}";
+
+		String responseFeedback = postQuery(BASE_URL+"feedbacks/_doc/_search",queryFeedback);
+		JSONObject jsonFeedback = new JSONObject(responseFeedback);
+		//System.out.println(jsonFeedback.toString());
+		
+		// extraire ses commentaires
+		int lengthJsoFeedback= jsonFeedback.getJSONObject("hits").getJSONArray("hits").length();
+
+		for (int i=0; i<lengthJsoFeedback; i++)
+		{ 
+			feedbacks.add(jsonFeedback.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("feedback"));     		
+		}
+		
+		System.out.println(" ");
+		System.out.println("********* Il a fait ces commentaires : *********");
+		for(String elem: feedbacks)
+		{
+			System.out.println (" // "+elem);
+		}	
+		
+		
+		/******* FIN : Trouver ses commentaires /*******/
+		
+
+		
+	}
+	
 
 }

@@ -27,9 +27,12 @@ public class Main {
       // Utility.query7("Olympikus");
        //Utility.query5("4149","Sports");
        
-    	Utility.query8("Sports","2021");
+    	//Utility.query8("Sports","2021");
         //String[] id= new String[]{"zakaria","mohamed"};
         //Utility.deleteData("vendor",id);
+    	
+    	
+    	Utility.query1("6597069771968");
 
     }
 
