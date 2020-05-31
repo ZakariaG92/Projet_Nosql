@@ -34,6 +34,19 @@ public class Main {
     	
     	Utility.query1("6597069771968");
 
+        String[] body={"{\n" +
+                "          \"vendor\" : \"zakaria_gasmi\",\n" +
+                "          \"country\" : \"algeria\",\n" +
+                "          \"industry\" : \"Sports\"\n" +
+                "        }","{\n" +
+                "          \"vendor\" : \"jassim\",\n" +
+                "          \"country\" : \"morocco\",\n" +
+                "          \"industry\" : \"Sports\"\n" +
+                "        }" };
+
+
+        Utility.insertData("vendor",body);
+
     }
 
 
