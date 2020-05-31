@@ -27,7 +27,9 @@ public class Main {
       // Utility.query7("Olympikus");
        //Utility.query5("4149","Sports");
        
-    	Utility.query8("Sports");
+    	//Utility.query8("Sports");
+        String[] id= new String[]{"zakaria","mohamed"};
+        Utility.deleteData("vendor",id);
 
     }
 

@@ -15,6 +15,7 @@ import org.json.JSONObject;
 
 import java.io.*;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
@@ -71,6 +72,8 @@ public class Utility {
 
 
     public static void postElasticsearch(String url1,Object object) throws IOException {
+
+        /*Zakaria Gasmi*/
         Gson gson = new Gson();
         //URL url = new URL("http://localhost:9200/app1/customer/"+person.id);
         URL url = new URL(url1);
@@ -99,8 +102,45 @@ public class Utility {
         }
     }
 
+    /****delete data est une methode qui en passant l'index et un tableau d'indentifiant en paramétres
+     * permet de supprimer ces enregistrement, on peut mettre un identifiant ou bien plusieurs*/
+    public static void deleteData(String index, String[] id) throws IOException {
+        /******Zakaria Gasmi*******/
+        for (int i = 0; i <id.length ; i++) {
+
+            String responseString;
+            URL url = new URL(BASE_URL+index+"/_doc/"+id[i]);
+            HttpURLConnection con = (HttpURLConnection)url.openConnection();
+            con.setRequestMethod("DELETE");
+            con.setRequestProperty("Authorization","Basic ZWxhc3RpYzpuNWZ1NzN0cVlOMVlmVHBNSU16akVlMXI=");
+            con.setDoOutput(true);
+
+            try{
+                try(BufferedReader br = new BufferedReader(
+                        new InputStreamReader(con.getInputStream(), "utf-8"))) {
+                    StringBuilder response = new StringBuilder();
+                    String responseLine = null;
+                    while ((responseLine = br.readLine()) != null) {
+                        response.append(responseLine.trim());
+                    }
+
+                    responseString=response.toString();
+
+                    JSONObject jsonObject = new JSONObject(responseString);
+
+
+                    if (jsonObject.getString("result").equals("deleted")) System.out.println("l'enregistrement dont l'identifiant "+id[i]+"  à bien été supprimé");;
+                    String str="";
+                }}
+            catch (Exception e){System.out.println("ERREUR ! l'enregistrement dont l'identifiant "+id[i]+"  est déja supprimé");}
+
+        }
+    }
+
 
     public static String postQuery(String url1,String query) throws IOException {
+
+        /******Zakaria Gasmi*******/
         String responseString;
         Gson gson = new Gson();
         //URL url = new URL("http://localhost:9200/app1/customer/"+person.id);
