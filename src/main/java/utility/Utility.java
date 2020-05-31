@@ -71,6 +71,56 @@ public class Utility {
 	}
 
 
+
+/**@param index l'index pour l'insertion des données
+ *@param body un tableau contenant des contenant des enregistrement, si on souhaite inserer un enregistrement,
+ * on passe un tableau avec un seul body, sinon on passe un tableau de plusieurs body
+ * la methode permet une insertion unique ou multiple selon le paramétre donnée*/
+    public static void insertData(String index, String[] body) throws IOException {
+
+        /*Zakaria Gasmi*/
+
+        for (int i = 0; i <body.length ; i++) {
+
+            Gson gson = new Gson();
+            URL url = new URL(BASE_URL+index+"/_doc/");
+            HttpURLConnection con = (HttpURLConnection)url.openConnection();
+            con.setRequestMethod("POST");
+            con.setRequestProperty("Authorization","Basic ZWxhc3RpYzpuNWZ1NzN0cVlOMVlmVHBNSU16akVlMXI=");
+            con.setRequestProperty("Content-Type", "application/json; utf-8");
+            con.setRequestProperty("Accept", "application/json");
+            con.setDoOutput(true);
+
+            try(OutputStream os = con.getOutputStream()) {
+                byte[] input = body[i].getBytes("utf-8");
+                os.write(input, 0, input.length);
+            }
+
+            try {
+                try(BufferedReader br = new BufferedReader(
+                        new InputStreamReader(con.getInputStream(), "utf-8"))) {
+                    StringBuilder response = new StringBuilder();
+                    String responseLine = null;
+                    while ((responseLine = br.readLine()) != null) {
+                        response.append(responseLine.trim());
+                    }
+
+                    JSONObject jsonObject = new JSONObject(response.toString());
+
+
+                    if (jsonObject.getString("result").equals("created")) System.out.println("l'enregistrement avec identifiant "+jsonObject.getString("_id")+" à bien été créer");
+                }
+
+            } catch (Exception e){
+                System.out.println("une erreur c'est produite lors de cet création");
+            }
+
+
+        }
+
+    }
+
+
 	public static void postElasticsearch(String url1,Object object) throws IOException {
 
 		/*Zakaria Gasmi*/
@@ -532,10 +582,6 @@ public class Utility {
 		LinkedHashSet<String> hashSet = new LinkedHashSet<>(duplicate);
 		duplicate = new ArrayList(hashSet);
 
-
-
-
-		String str="";
 		return duplicate;
 
 

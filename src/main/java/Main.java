@@ -27,9 +27,22 @@ public class Main {
       // Utility.query7("Olympikus");
        //Utility.query5("4149","Sports");
        
-    	Utility.query8("Sports","2021");
+    	//Utility.query8("Sports","2021");
         //String[] id= new String[]{"zakaria","mohamed"};
         //Utility.deleteData("vendor",id);
+
+        String[] body={"{\n" +
+                "          \"vendor\" : \"zakaria_gasmi\",\n" +
+                "          \"country\" : \"algeria\",\n" +
+                "          \"industry\" : \"Sports\"\n" +
+                "        }","{\n" +
+                "          \"vendor\" : \"jassim\",\n" +
+                "          \"country\" : \"morocco\",\n" +
+                "          \"industry\" : \"Sports\"\n" +
+                "        }" };
+
+
+        Utility.insertData("vendor",body);
 
     }
 
