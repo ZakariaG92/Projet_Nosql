@@ -1,11 +1,16 @@
 package data;
 
 public class Feedback {
+	
 	public String assin;
 	public String personId;
 	public double note;
 	public String feedback;
 
+	public Feedback() {
+		
+	}
+	
 	public Feedback(String assin, String personId, double note, String feedback) {
 		this.assin = assin;
 		this.personId = personId;
