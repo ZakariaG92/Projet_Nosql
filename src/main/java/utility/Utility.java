@@ -15,10 +15,15 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Scanner;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 import org.json.JSONArray;
@@ -135,17 +140,14 @@ public class Utility {
 			response.append(responseLine.trim());
 			String json = responseLine.trim().toString();
 			Order order = gson.fromJson(json, Order.class);
-			orders.add(order);
-		}
-
-		for (int i = 0; i < orders.size(); i++) {
 			try {
-				elasticsearch("orders/_doc/" + orders.get(i).orderId.toString(), "POST", orders.get(i), null);
-				//Thread.sleep(1000);
+				elasticsearch("order/_doc/" + order.orderId.toString(), "POST", order, null);
+				//System.out.println(i);
 			} catch (Exception e) {
-				System.out.println("orders/_doc/" + orders.get(i).orderId.toString() + " not created");
+				System.out.println("order/_doc/" + order.orderId.toString() + " not created");
 			}
 		}
+
 	}
 
 	public static void loadInvoices(String path, String name) {
@@ -186,10 +188,55 @@ public class Utility {
 			Scanner sc = new Scanner(bufferedReader);
 			int i = 0;
 			while (sc.hasNext()) {
-				String[] trimmed = sc.nextLine().split(Pattern.quote("|"));
-				Feedback toSend = new Feedback(trimmed[0], trimmed[1], trimmed[0]);
-				System.out.println(toSend.toJSON());
-				elasticsearch("feedbacks/_doc/" + i, "POST", null, toSend.toJSON());
+
+				String line = sc.nextLine();
+
+				if (i >= 150000 && i < 160000) {
+					String[] trimmed = line.split(Pattern.quote("|"));
+					String[] third = trimmed[2].split(",", 2);
+
+					String noteS = third[0];
+
+					noteS = noteS.replaceAll("\"", "");
+					noteS = noteS.replaceAll("'", "");
+					double note = 2.5;
+
+					third[1] = third[1].replaceAll("\"", "");
+					third[1] = third[1].replaceAll("'", "");
+					third[1] = third[1].replaceAll("\\\\", "");
+
+					trimmed[0] = trimmed[0].replaceAll("\"", "");
+					trimmed[0] = trimmed[0].replaceAll("'", "");
+
+					try {
+						note = Double.parseDouble(noteS);
+					} catch (Exception e) {
+						note = 2.5;
+					}
+
+					Feedback toSend = new Feedback(trimmed[0], trimmed[1], note, third[1]);
+
+					try {
+						elasticsearch("feedbacks/_doc/" + i, "POST", null, toSend.toJSON());
+					} catch (Exception e) {
+						try {
+							TimeUnit.SECONDS.sleep(10);
+						} catch (Exception e1) {
+							System.out.println("TimeUnit exception");
+						}
+
+						try {
+							elasticsearch("feedbacks/_doc/" + i, "POST", null, toSend.toJSON());
+						} catch (Exception e2) {
+							System.out.println("ERROR " + toSend.toJSON());
+						}
+
+					}
+
+					System.out.println(i);
+				}
+
+				i++;
 			}
 
 			bufferedReader.close();
@@ -209,6 +256,7 @@ public class Utility {
 			sc.nextLine();
 			while (sc.hasNext()) {
 				String[] trimmed = sc.nextLine().split(Pattern.quote("|"));
+
 				String json = "{\"personOne\":\"" + trimmed[0] + "\", \"personTwo\" : \"" + trimmed[1] + "\", "
 						+ "\"creationDate\":\"" + trimmed[2] + "\"}";
 
@@ -291,25 +339,34 @@ public class Utility {
 
 			int i = 0;
 			Gson gson = new Gson();
-			String json;
+			String json = "";
 			sc.nextLine();
 			String[] trimmed;
-			String postId;
-			String personId;
+			String postId = "";
+			String personId = "";
 			while (sc.hasNext()) {
 				trimmed = sc.nextLine().split(Pattern.quote("|"));
 
-				postId = trimmed[0];
-				personId = trimmed[1];
+				if (i >= 650000 && i < 700000) {
+					try {
+						postId = trimmed[0];
+						personId = trimmed[1];
 
-				json = "{\"script\" : \"ctx._source.personId = '" + personId + "'\"}";
-				try {
-					elasticsearch("posts/_update/" + postId, "POST", null, json);
+						json = "{\"script\" : \"ctx._source.personId = '" + personId + "'\"}";
 
-				} catch (IOException e) {
-					System.out.println("ERROR : " + postId);
+						//System.out.println(json);
+
+						elasticsearch("posts/_update/" + postId.replaceAll(" ", ""), "POST", null, json);
+
+					} catch (Exception e) {
+						System.out.println("POST posts/_update/" + postId);
+						System.out.println(json);
+
+					}
+
+					//System.out.println("Post " + postId + " i " + i);
+
 				}
-				System.out.println("Post " + postId + " i " + i);
 
 				i++;
 			}
@@ -344,8 +401,7 @@ public class Utility {
 					+ startString + "\", \"lte\" : \"" + endString + "\" }}"
 					+ "},\"aggs\" : {\"groupBy\" : {\"terms\" : {\"field\" : \"personId.keyword\" }}}}";
 
-			System.out.println(requestPosts);
-			String response = elasticsearch("http://localhost:9200/post/_search", "POST", null, requestPosts);
+			String response = elasticsearch("post/_search", "POST", null, requestPosts);
 
 			JSONObject responseObj = new JSONObject(response);
 			JSONArray buckets = responseObj.getJSONObject("aggregations").getJSONObject("groupBy")
@@ -386,7 +442,7 @@ public class Utility {
 									+ "\"aggs\": {\"total\": {\"sum\": {\"field\": \"TotalPrice\" }}}}";
 
 							JSONObject orderInformations = new JSONObject(
-									elasticsearch("orders/_search/", "POST", null, requestOrders));
+									elasticsearch("order/_search/", "POST", null, requestOrders));
 
 							int total = orderInformations.getJSONObject("hits").getJSONObject("total").getInt("value");
 
@@ -394,22 +450,23 @@ public class Utility {
 								System.out.println(
 										"Aucun Achat dans la periode entre " + startString + " et " + endString);
 							} else {
-								JSONObject dernierAchat = (JSONObject) orderInformations.getJSONObject("hits")
-										.getJSONArray("hits").get(0);
+								JSONObject dernierAchat = ((JSONObject) orderInformations.getJSONObject("hits")
+										.getJSONArray("hits").get(0)).getJSONObject("_source");
 
 								System.out.println("Recence -- Dernier Achat :");
-								System.out.println("	Id : " + dernierAchat.getString("dernierAchat"));
+								System.out.println("	Id : " + dernierAchat.getString("OrderId"));
 								System.out.println("	Date : " + dernierAchat.getString("OrderDate"));
-								System.out.println("	Somme : " + dernierAchat.getString("TotalPrice"));
+								System.out.println("	Somme : " + dernierAchat.getDouble("TotalPrice"));
 
 								System.out.println("Frequence -- ");
 								System.out.println("	nombre d'achat : " + total + " achats");
 								System.out.println("    nombre de jours : " + diff + " jours");
-								System.out.println("    frequence : " + total / diff);
+								double freq = (double) diff / total;
+								System.out.println("    frequence : Un achat chaque  " + Math.round(freq) + " jours");
 
 								System.out.println("Montant --");
-								System.out.println("	somme d'achats effectuees : " + orderInformations
-										.getJSONObject("aggregations").getJSONObject("total").getDouble("value"));
+								System.out.println("	somme d'achats effectuees : " + Math.round(orderInformations
+										.getJSONObject("aggregations").getJSONObject("total").getDouble("value")));
 							}
 
 						}
@@ -498,7 +555,188 @@ public class Utility {
 		}
 	}
 
+	public static void query9(String country, int count, int lastPostsNumber) {
+
+		if (count == 0) {
+			count = 3;
+		}
+
+		if (lastPostsNumber == 0) {
+			lastPostsNumber = 1;
+		}
+		if (country != null) {
+			String vendorsOfCountryQuery = "{\"query\": {\"match\": {\"country\": \"%s\"}}}";
+			String sellsAmountQuery = "{\"size\": 0, \"aggs\" : {\"orders\" : {" + " \"nested\" :"
+					+ "{\"path\" : \"Orderline\"" + "}," + "\"aggs\": {\"nested\" : {"
+					+ "\"filter\" : { \"term\": { \"Orderline.brand.keyword\": \"%s\" } },"
+					+ "\"aggs\" : { \"sells\" : { \"sum\" : { \"field\" : \"Orderline.price\" } }" + "}}}}}}";
+
+			String getPersonsIdsQuery = "{\"size\":0, \"query\": {\"nested\": {\"path\": \"Orderline\",\"query\": "
+					+ "{\"match\":{\"Orderline.brand\": \"%s\"}}}},"
+					+ " \"aggs\" : {\"uniqPersons\" :{\"terms\" : { \"field\" : \"PersonId.keyword\", \"size\" : 10000 }}}}";
+
+			String genderQuery = "{\"size\" : 0,\"query\": {\"terms\": {\"id\": %s}},"
+					+ "\"aggs\" : {\"female\" : {\"filter\" : { \"term\": { \"gender\": \"female\" }}},"
+					+ "\"male\" : {\"filter\" : { \"term\": { \"gender\": \"male\" } }}}}";
+
+			String lastPostsQuery = "{\"size\" :%d,\"sort\" : [{ \"creationDate\" : \"desc\"}],\"query\" : "
+					+ "{\"terms\" : { \"personId\" : %s }}}";
+
+			Map<String, Double> sellers = new HashMap();
+			try {
+
+				// Search vendors list of the country
+				String vendorsResponse = elasticsearch("vendor/_search", "POST", null,
+						String.format(vendorsOfCountryQuery, country));
+				JSONObject jsonVendors = new JSONObject(vendorsResponse);
+
+				JSONArray vendors = jsonVendors.getJSONObject("hits").getJSONArray("hits");
+
+				if (vendors.length() > 0) {
+
+					// Search best vendors
+					Iterator vIt = vendors.iterator();
+					JSONObject vendor = null;
+					String sellsAmountResponse;
+					JSONObject sellsAmountJson;
+					while (vIt.hasNext()) {
+						try {
+							vendor = (JSONObject) vIt.next();
+							String vendorName = vendor.getJSONObject("_source").getString("vendor");
+
+							sellsAmountResponse = elasticsearch("order/_search", "POST", null, String
+									.format(sellsAmountQuery, vendor.getJSONObject("_source").getString("vendor")));
+
+							sellsAmountJson = new JSONObject(sellsAmountResponse);
+
+							Double sellsAmount = sellsAmountJson.getJSONObject("aggregations").getJSONObject("orders")
+									.getJSONObject("nested").getJSONObject("sells").getDouble("value");
+
+							if (sellers.size() < count) {
+								sellers.put(vendorName, sellsAmount);
+							} else {
+								Double min = Collections.min(sellers.values());
+								if (sellsAmount > min) {
+									for (Entry<String, Double> entry : sellers.entrySet()) {
+										if (entry.getValue().equals(min)) {
+											sellers.remove(entry.getKey());
+											sellers.put(vendorName, sellsAmount);
+											break;
+										}
+									}
+								}
+							}
+
+						} catch (Exception e) {
+							System.out.println(String.format(sellsAmountQuery,
+									vendor.getJSONObject("_source").getString("vendor")));
+							e.printStackTrace();
+						}
+
+					}
+
+					System.out.println("the " + (count == 1 ? "" : count) + " Compan" + (count == 1 ? "y" : "ies")
+							+ " with the best sells :");
+
+					for (Entry<String, Double> v : sellers.entrySet()) {
+						System.out
+								.println(v.getKey().replaceAll("_", " ") + " with " + Math.round(v.getValue()) + " $");
+
+						// Search all persons of a company
+						String personsResponse = elasticsearch("order/_search", "POST", null,
+								String.format(getPersonsIdsQuery, v.getKey()));
+
+						JSONArray personsJSONList = new JSONObject(personsResponse).getJSONObject("aggregations")
+								.getJSONObject("uniqPersons").getJSONArray("buckets");
+
+						ArrayList<String> personsArray = new ArrayList<String>();
+
+						Iterator itP = personsJSONList.iterator();
+
+						while (itP.hasNext()) {
+							personsArray.add("\"" + ((JSONObject) itP.next()).getString("key") + "\"");
+						}
+
+						//Get gender percentage
+						String genderResponse = elasticsearch("person/_search", "POST", null,
+								String.format(genderQuery, personsArray.toString()));
+
+						JSONObject genderJson = new JSONObject(genderResponse);
+
+						int male = genderJson.getJSONObject("aggregations").getJSONObject("male").getInt("doc_count");
+						int female = genderJson.getJSONObject("aggregations").getJSONObject("female")
+								.getInt("doc_count");
+
+						double malePercentage = (double) male / personsArray.size();
+						double femalePercentage = (double) female / personsArray.size();
+
+						System.out.println("Clients number : " + personsArray.size());
+						System.out
+								.println(String.format("Male percentage (%d): %.2f", male, malePercentage * 100) + "%");
+						System.out.println(
+								String.format("Female percentage (%d) : %.2f", female, femalePercentage * 100) + "%");
+
+						//Search last posts
+
+						String lastPostsString = elasticsearch("posts/_search", "POST", null,
+								String.format(lastPostsQuery, lastPostsNumber, personsArray.toString()));
+
+						JSONObject lastPostsJson = new JSONObject(lastPostsString);
+
+						JSONArray posts = lastPostsJson.getJSONObject("hits").getJSONArray("hits");
+
+						System.out.println("Last Posts : ");
+
+						Iterator itp = posts.iterator();
+						while (itp.hasNext()) {
+							JSONObject post = ((JSONObject) itp.next()).getJSONObject("_source");
+
+							System.out.println("\tid : " + post.getString("id"));
+							System.out.println("\tdate : " + post.getString("creationDate"));
+							System.out.println("\tperson : " + post.getString("personId"));
+							System.out.println("\tbrowser : " + post.getString("browserUsed"));
+							if (post.getInt("length") > 0) {
+								System.out.println("\tContent : " + post.getString("content"));
+							}
+							System.out.println();
+						}
+
+						System.out.println("------------------------------------");
+					}
+
+				} else {
+					System.out.println("No company at " + country);
+				}
+
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+
+		}
+
+	}
+
+	public static void updateField(String index, String field, String value) {
+		String query = "{\r\n" + "    \"script\" : \"ctx._source.%s = '%s'\"}";
+
+		try {
+			elasticsearch(index + "/_update", "POST", null, String.format(query, field, value));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+	}
+
+	public static void updateDocument(String index, String id, String doc) {
+		String query = "{ \"doc\" : %s}";
+		try {
+			elasticsearch(index + "/_update/" + id, "POST", null, String.format(query, doc));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
 	public static void main(String[] args) {
-		Utility.query6("8796093023726", "8796093027528");
+		Utility.query10("2010-01-01", "2024-01-01");
 	}
 }
