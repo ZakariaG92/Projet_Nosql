@@ -399,16 +399,19 @@ public class Utility {
 			BufferedReader bufferedReader = new BufferedReader(new FileReader(path));
 			Scanner sc = new Scanner(bufferedReader);
 
-			//int i = 0;
+			int i = 0;
 			Gson gson = new Gson();
 			String json = "";
 			sc.nextLine();
 			String[] trimmed;
 			String postId = "";
 			String personId = "";
+		
 			while (sc.hasNext()) {
 				trimmed = sc.nextLine().split(Pattern.quote("|"));
-
+			
+				
+				if(i > 550000 && i < 600000 ) {
 				try {
 					postId = trimmed[0];
 					personId = trimmed[1];
@@ -422,6 +425,8 @@ public class Utility {
 					System.out.println(json);
 
 				}
+				}
+				i++;
 
 			}
 			bufferedReader.close();
@@ -1457,7 +1462,51 @@ public class Utility {
 		if (found.size() == 0) {
 			System.out.println("Aucune relation entre les deux personnes dans la limite de 30 branche");
 		} else {
-			System.out.println("La relation la plus proche entre les deux personnes est : " + found);
+			System.out.println("La relation la plus proche entre les deux personnes est : ");
+			
+			System.out.print("[");
+			int indexPerson = 0;
+			for(String idPerson : found) {
+				try {
+					String personString = elasticsearch("person/_doc/" + idPerson, "GET", null, null);
+					JSONObject personObject = new JSONObject(personString).getJSONObject("_source");
+					System.out.print("(" + idPerson + " - " + personObject.getString("firstName") + " " + personObject.getString("lastName") + ")");
+					
+					if(indexPerson != found.size()) {
+						System.out.print(" -> ");
+					}
+					indexPerson++;
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+			System.out.println("]");
+			
+			
+			String querySellers = "{ \"size\" : 0, \"query\" : { \"terms\" : { \"PersonId\" : %s } },"
+					+ " \"aggs\" : { \"sellers\" : { \"nested\" : { \"path\" : \"Orderline\" }, "
+					+ "\"aggs\" : { \"brand\" : { \"terms\" : { \"field\" : \"Orderline.brand.keyword\" }, "
+					+ "\"aggs\" : { \"pricesum\" : { \"sum\" : { \"field\" : \"Orderline.price\" } }, "
+					+ "\"pricesumSort\": { \"bucket_sort\": { \"sort\": [ {\"pricesum\": {\"order\": \"desc\"}} ], "
+					+ "\"size\" : 3 } } } } } } } }";
+			
+			try {
+				String sellersResponseString = elasticsearch("order/_search/", "POST", null, String.format(querySellers,found.toString()));
+				JSONArray sellersResponse = new JSONObject(sellersResponseString).getJSONObject("aggregations")
+						.getJSONObject("sellers").getJSONObject("brand").getJSONArray("buckets");
+				Iterator itS = sellersResponse.iterator();
+				
+				System.out.println("Meilleurs vendeurs pour ces personnes : ");
+				while(itS.hasNext()) {
+					JSONObject seller = (JSONObject) itS.next();
+					System.out.print(seller.getString("key").replaceAll("_", " "));
+					double pricesum = seller.getJSONObject("pricesum").getDouble("value");
+					System.out.println(String.format(" d'une valeur de %.2f $", pricesum));
+				}
+				
+			} catch (IOException e) {
+				System.out.println("Aucun vondeurs trouvé");
+			}
 		}
 	}
 
@@ -1621,8 +1670,4 @@ public class Utility {
 		}
 
 	}
-
-
-
-
 }
