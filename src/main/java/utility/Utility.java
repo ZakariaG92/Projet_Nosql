@@ -656,7 +656,6 @@ public class Utility {
 		/******* FIN : Trouver ses commentaires /*******/
 	}
 	
-	
 	/**
 	 * QUERY 2
 	 * @author : Mohamed TONZAR
@@ -669,16 +668,11 @@ public class Utility {
 	{
 		// pour stocker les personnes commandee ce produit pendant la periode demendee
 		ArrayList<String> personnesPeriode = new ArrayList<>();
+		
 		// pour stocker les personnes qui ont fait des commentaires pour ce produit
 		ArrayList<String> personnesFeedback = new ArrayList<>();
-		
 
-		// pour stocker les commentaires 
-		ArrayList<String> commentaires = new ArrayList<>();
-		Set<String> setCommentaires = new HashSet<>(commentaires); /*des HashSet pour eviter les doublons*/
-
-
-		/******* DEBUT :  Recuperer les clients qui ont commande ce produit pendant cette periode *******/
+		//  Recuperer les clients qui ont commande ce produit pendant cette periode
 
 		// On commence par filtrer par la periode
 		String queryPeriode= "{\"size\" : 200, \"query\": {\"range\": { \"OrderDate\": { \"gte\": \""+dateDebut+"\", \"lte\" : \""+dateFin+"\" }}}}";
@@ -712,28 +706,26 @@ public class Utility {
 
 		}
 
-		/******* FIN : Recuperer les clients qui ont commande ce produit pendant cette periode *******/
 
-		/******* DEBUT :  Recuperer les personnes qui ont fait a FeedBack pour ce produit *******/
-
-		String query= "{\"size\":300,\"query\":{\"bool\":{\"must\":[{\"match\":{\"assin\":\""+asiin+"\"}}]}}}";
-		String response= elasticsearch("feedbacks/_search", "POST", null, query);
+		// Recuperer les personnes qui ont fait a FeedBack pour ce produit 
+		String requette= "{\"size\":300,\"query\":{\"bool\":{\"must\":[{\"match\":{\"assin\":\""+asiin+"\"}}]}}}";
+		String response= elasticsearch("feedbacks/_search", "POST", null, requette);
+		
 		JSONObject jsonObject = new JSONObject(response);
-		int len= jsonObject.getJSONObject("hits").getJSONArray("hits").length();
+		int lenght= jsonObject.getJSONObject("hits").getJSONArray("hits").length();
 
 
-		for (int i=0; i<len; i++)
+		for (int i=0; i<lenght; i++)
 		{
-			// Toutes les personnes qui ont fait un FeedBack pendant toutes les periodes
+			// Toutes les personnes qui ont fait un FeedBack dans la periode saisies
 			String feedback = jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("personId");
 
-			// Ajouter les personnes qui ont fait un FeedBack pendant la periode demandee
+			// Ajouter les personnes qui ont fait un FeedBack 
 			personnesFeedback.add(feedback);
 			System.out.println ("- "+feedback);	
-			
-			/******* FIN :  Recuperer les personnes qui ont fait un FeedBack et achter pour ce produit *******/
 		}
 	}
+	
 	
 	
 	/**
