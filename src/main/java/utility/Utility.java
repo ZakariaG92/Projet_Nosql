@@ -564,6 +564,7 @@ public class Utility {
 	
 	/**
 	 * QUERY 1
+	 * @author : Jassim EL HAROUI
 	 * @param personne : le client donne
 	 * @throws IOException
 	 */
@@ -744,6 +745,7 @@ public class Utility {
 		}
 	}
 	
+	
 	/**
 	 * QUERY 3
 	 * @author : Jassim EL HAROUI
@@ -811,6 +813,9 @@ public class Utility {
 		{
 			// Toutes les personnes qui ont fait un FeedBack pendant toutes les periodes
 			String feedback = jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("personId");
+			
+			// ICI : on peut directement ajouter les notes < 3 mais il va ajouter pour toutes les periodes 
+			// alors on passe pour faire des tests
 
 			for(String elem: personnesFeedback)
 			{
@@ -819,6 +824,7 @@ public class Utility {
 				{
 					// Ajouter les personnes qui ont fait un FeedBack pendant la periode demandee
 					personnesFeedback.add(jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("personId"));
+					
 
 					// Tester si la note est moins de 3
 					if (jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getInt("note") <= 3)
@@ -850,8 +856,10 @@ public class Utility {
 			/******* FIN :  Recuperer les personnes qui ont fait un FeedBack negatif pour ce produit *******/
 
 		}
+		
+		
 	}
-
+	
 	
 	public static ArrayList<String> query4() throws IOException {
 
@@ -1558,11 +1566,9 @@ public class Utility {
 
 		if (totalPrice.isEmpty())
 			System.out.println("OUPS !! Cette categorie : "+category+" n'a fait aucune vente en "+annee);
+		else
+			System.out.println ("Motant total des ventes de la categorie "+category+" en "+annee+" est " +totalPrice.get(0));
 
-		/*for(int elem: totalPrice)
-		{
-			System.out.println ("Motant total - "+elem);
-		}*/
 
 		/******* FIN : On va recuperer toutes les ventes de l'annee donnee en parametre (annee) et ensuite recuperer le montant total de ces ventes /*******/
 

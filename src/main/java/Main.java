@@ -32,7 +32,15 @@ public class Main {
         //Utility.deleteData("vendor",id);
     	
     	
-    	Utility.query1("6597069771968");
+    	/** Parametre : (String personne) **/
+    	//Utility.query1("6597069771968");
+    	
+    	/** Parametres : (String dateDebut, String dateFin, String asiin)**/
+    	//Utility.query3("2020-05-01","2020-05-20","B003A1U3LW");
+    	
+    	/** Parametre : (String category, String annee)**/
+    	Utility.query8("Sports","2020");
+    	//Utility.query20("Sports");
 
         String[] body={"{\n" +
                 "          \"vendor\" : \"zakaria_gasmi\",\n" +
@@ -45,7 +53,7 @@ public class Main {
                 "        }" };
 
 
-        Utility.insertData("vendor",body);
+        //Utility.insertData("vendor",body);
 
     }
 
