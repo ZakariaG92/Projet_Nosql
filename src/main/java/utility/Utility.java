@@ -653,6 +653,94 @@ public class Utility {
 		return gson.toJson(feedbacksAll);
 
 	}
+	
+	/**
+	 * QUERY 2
+	 * @author : Mohamed TONZAR
+	 * @param dateDebut : la date de debut
+	 * @param dateFin : la date de fin
+	 * @param asiin : le produit
+	 * @throws IOException
+	 */
+	public static void query2(String dateDebut, String dateFin, String asiin) throws IOException
+	{
+		// pour stocker les personnes commandee ce produit pendant la periode demendee
+		ArrayList<String> personnesPeriode = new ArrayList<>();
+		// pour stocker les personnes qui ont fait des commentaires pour ce produit
+		ArrayList<String> personnesFeedback = new ArrayList<>();
+		
+
+		// pour stocker les commentaires 
+		ArrayList<String> commentaires = new ArrayList<>();
+		Set<String> setCommentaires = new HashSet<>(commentaires); /*des HashSet pour eviter les doublons*/
+
+
+		/******* DEBUT :  Recuperer les clients qui ont commande ce produit pendant cette periode *******/
+
+		// On commence par filtrer par la periode
+		String queryPeriode= "{\"size\" : 200, \"query\": {\"range\": { \"OrderDate\": { \"gte\": \""+dateDebut+"\", \"lte\" : \""+dateFin+"\" }}}}";
+
+		String responsePeriode= postQuery(BASE_URL+"order/_doc/_search",queryPeriode);
+		JSONObject jsonObjectPeriode = new JSONObject(responsePeriode);
+
+		int lenJsonObjectPeriode= jsonObjectPeriode.getJSONObject("hits").getJSONArray("hits").length();
+
+		for (int i=0; i<lenJsonObjectPeriode; i++)
+		{
+			int lenJsonObjectPeriode2 = jsonObjectPeriode.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getJSONArray("Orderline").length();
+
+			for (int j = 0; j < lenJsonObjectPeriode2 ; j++) {
+
+				// On recupere tous les produits commandee pendant cette periode
+				String asin = jsonObjectPeriode.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getJSONArray("Orderline").getJSONObject(j).getString("asin");
+
+
+				// On compare les produits de la periode avec notre produit demande en parametre
+				if (asiin.equals(asin))
+				{
+					// Si c'est notre produit, on stock ces clients dans la liste 'personnes'
+					personnesPeriode.add(jsonObjectPeriode.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("PersonId"));
+
+				}
+			}
+
+		}
+
+		/******* FIN : Recuperer les clients qui ont commande ce produit pendant cette periode *******/
+
+		/******* DEBUT :  Recuperer les personnes qui ont fait a FeedBack pour ce produit *******/
+
+		String query= "{\"size\":300,\"query\":{\"bool\":{\"must\":[{\"match\":{\"assin\":\""+asiin+"\"}}]}}}";
+
+		String response= postQuery(BASE_URL+"feedbacks/_doc/_search",query);
+		JSONObject jsonObject = new JSONObject(response);
+		int len= jsonObject.getJSONObject("hits").getJSONArray("hits").length();
+
+		for (int i=0; i<len; i++)
+		{
+			// Toutes les personnes qui ont fait un FeedBack pendant toutes les periodes
+			String feedback = jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("personId");
+
+			for(String elem: personnesFeedback)
+			{
+				// Comparer les personnes (entre la periode et le Feedback)
+				if (elem.equals(feedback))
+				{
+					// Ajouter les personnes qui ont fait un FeedBack pendant la periode demandee
+					personnesFeedback.add(jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("personId"));
+
+					System.out.println("\n\n********** Les personnes qui ont commente et acheter le produit "+asiin+" entre le : "+dateDebut+" et "+dateFin+" sont : **********");
+					System.out.println ("- "+elem);
+			
+				}
+
+			}
+			
+		
+			/******* FIN :  Recuperer les personnes qui ont fait un FeedBack et achter pour ce produit *******/
+
+		}
+	}
 
 
 	/**

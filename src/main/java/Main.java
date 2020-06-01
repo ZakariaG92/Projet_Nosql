@@ -35,7 +35,7 @@ public class Main {
     	//Utility.query1("6597069771968");
     	
     	/** Parametres : (String dateDebut, String dateFin, String asiin)**/
-    	//Utility.query3("2000-01-01","2024-09-30","B003A1U3LW");
+    	Utility.query2("2018-07-07","2024-06-21","B005FUKW6M");
     	
     	/** Parametre : (String category, String annee)**/
     	//Utility.query8("Sports","2021");
@@ -52,6 +52,7 @@ public class Main {
 
 
         //Utility.insertData("vendor",body);
+        
 
     }
 
