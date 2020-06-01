@@ -1277,6 +1277,8 @@ public class Utility {
 
 		int i = 0;
 
+		// L'ALGORITHME DIJKSTRA
+		// pour trouver le lien le plus proche entre les deux personnes
 		mainLoop: while (toVisit.size() != 0) {
 
 			for (ArrayList<String> list : toVisit) {
@@ -1316,6 +1318,7 @@ public class Utility {
 
 			i++;
 
+			// La limite des personnes est 30
 			if (i > 30) {
 				break mainLoop;
 			}
@@ -1348,6 +1351,8 @@ public class Utility {
 			System.out.println("]");
 			
 			
+			
+			// CHERCHER LES MEILLEURS VANDEURS
 			String querySellers = "{ \"size\" : 0, \"query\" : { \"terms\" : { \"PersonId\" : %s } },"
 					+ " \"aggs\" : { \"sellers\" : { \"nested\" : { \"path\" : \"Orderline\" }, "
 					+ "\"aggs\" : { \"brand\" : { \"terms\" : { \"field\" : \"Orderline.brand.keyword\" }, "
@@ -1745,6 +1750,8 @@ public class Utility {
 		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
 		format.setLenient(true);
 		try {
+			// On prend on charge les dates donnees
+			// Si les dates sont pas correct cherche pour la derniere annee
 			try {
 				format.parse(endString);
 			} catch (ParseException e) {
@@ -1760,10 +1767,19 @@ public class Utility {
 				startString = format.format(c.getTime());
 			}
 
+			// la requete pour trouver les posts
 			String requestPosts = "{\"size\" : 0, \"query\": {\"range\": { \"creationDate\": { \"gte\": \""
 					+ startString + "\", \"lte\" : \"" + endString + "\" }}"
 					+ "},\"aggs\" : {\"groupBy\" : {\"terms\" : {\"field\" : \"personId.keyword\" }}}}";
-
+			
+			// la requete pour trouver les tags
+			String tagsRequest = "{ \"size\" :100, \"query\": { \"match\" : { \"personId\" : \"%s\" } } }";
+			
+			// la requete pour trouver les feedbacks
+			String feedbacksRequest = "{ \"size\" : 3, \"query\": { \"match\" : { \"personId\" : \"%s\" } } }";
+			
+			
+			// on chercher les personnes avec le plus des postes
 			String response = elasticsearch("post/_search", "POST", null, requestPosts);
 
 			JSONObject responseObj = new JSONObject(response);
@@ -1781,11 +1797,12 @@ public class Utility {
 					String personId = object.getString("key");
 					int count = object.getInt("doc_count");
 
+					
+					// Pour chaque personne trouvee on recupere les informations
 					JSONObject personInformations = new JSONObject(
 							elasticsearch("person/_doc/" + personId, "GET", null, null));
 
 					System.out.println("***** Client avec " + count + " posts ******");
-					//System.out.println(personInformations.toString());
 					if (personInformations.getBoolean("found")) {
 						JSONObject person = personInformations.getJSONObject("_source");
 						if (person.isEmpty()) {
@@ -1798,6 +1815,10 @@ public class Utility {
 							System.out.println("Sexe : " + person.getString("gender"));
 							System.out.println("IP : " + person.getString("locationIP"));
 
+							//Pour chaque personnes on cherche ces ordres pour calculer la RFM
+							// *******************
+							// ******* RFM *******
+							// *******************
 							String requestOrders = "{\"query\" : {\"bool\": {\"must\": {\"match\": "
 									+ "{\"PersonId\": \"" + personId + "\"}},\"filter\": "
 									+ "{ \"range\": {\"OrderDate\": {\"gte\": \"" + startString + "\"" + ",\"lte\" :\""
@@ -1833,19 +1854,58 @@ public class Utility {
 							}
 
 							
-							String tagsRequest = "{ \"size\" : 1000, \"query\": { \"match\" : { \"personId\" : \"%s\" } } }";
-							String feedbacksRequest = "{ \"size\" : 3, \"query\": { \"match\" : { \"personId\" : \"%s\" } } }";
+
+							// On cherche les tags
 							
+							// *******************
+							// ****** TAGS *******
+							// *******************
 							try {
-								String tagsResponse = elasticsearch("", "POST", null, String.format(tagsRequest, person.getString("id")));
+								String tagsResponse = elasticsearch("persontags/_search", "POST", null, String.format(tagsRequest, person.getString("id")));
 								JSONArray tags = new JSONObject(tagsResponse).getJSONObject("hits").getJSONArray("hits");
 								if(tags.length() > 0) {
-									
+									System.out.println("Le client est interesse par les tags suivants :");
+									Iterator itT = tags.iterator();
+									System.out.print("[");
+									while(itT.hasNext()) {
+										JSONObject tag = (JSONObject) itT.next();
+										System.out.print(tag.getJSONObject("_source").getString("tagId") + ", ");
+									}
+									System.out.println("]");
 								} else {
-									System.out.println("Aucun tag trouve");
+									System.out.println(" **** Aucun tag trouve ****");
 								}
 							} catch (Exception e) {
-								System.out.println("Aucun tag trouve");
+		
+								System.out.println(" **** Aucun tag trouve ****");
+							}
+							
+							// ************************
+							// ****** Feedbacks *******
+							// ************************
+							try {
+								String feedbacksResponse = elasticsearch("feedbacks/_search", "POST", null, String.format(feedbacksRequest, person.getString("id")));
+								JSONArray feedbacks =  new JSONObject(feedbacksResponse).getJSONObject("hits").getJSONArray("hits");
+								
+								if(feedbacks.length() > 0) {
+									System.out.println("Le 3 derniers feedback du client :");
+									Iterator itF = feedbacks.iterator();
+									while(itF.hasNext()) {
+										JSONObject feedback = ((JSONObject) itF.next()).getJSONObject("_source");
+										System.out.println("	ASSIN : " + feedback.getString("assin"));
+										System.out.println("	Note : " + feedback.getDouble("note"));
+										
+										String [] arr = feedback.getString("feedback").split("\\s+"); 
+										for(int i=0; i<10 && i < arr.length  ; i++){
+											System.out.print(arr[i] + " ");
+										}
+										System.out.println(" ...");
+									}
+								} else {
+									System.out.println("**** Aucun feedback trouve ****");
+								}
+							} catch (Exception e) {
+								System.out.println("**** Aucun Feedback trouve ****");
 							}
 						}
 
@@ -1854,6 +1914,7 @@ public class Utility {
 
 					}
 
+					System.out.println("----------------------------------");
 				}
 			}
 
