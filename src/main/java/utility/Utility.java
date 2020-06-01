@@ -1895,6 +1895,7 @@ public class Utility {
 										System.out.println("	ASSIN : " + feedback.getString("assin"));
 										System.out.println("	Note : " + feedback.getDouble("note"));
 										
+										System.out.print("	Feedback : ");
 										String [] arr = feedback.getString("feedback").split("\\s+"); 
 										for(int i=0; i<10 && i < arr.length  ; i++){
 											System.out.print(arr[i] + " ");
