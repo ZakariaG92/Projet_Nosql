@@ -18,12 +18,14 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
@@ -343,10 +345,9 @@ public class Utility {
 			sc.nextLine();
 			while (sc.hasNext()) {
 				String[] trimmed = sc.nextLine().split(Pattern.quote("|"));
-				String json = "{\"person.id\":\"" + trimmed[0] + "\", \"tag.id\" : \"" + trimmed[1] + "\"}";
+				String json = "{\"personId\":\"" + trimmed[0] + "\", \"tagId\" : \"" + trimmed[1] + "\"}";
 
-				elasticsearch("personTags/_doc/" + i, "POST", null, json);
-				System.out.println(i);
+				elasticsearch("persontags/_doc/" + i, "POST", null, json);
 				i++;
 			}
 
@@ -411,7 +412,7 @@ public class Utility {
 				trimmed = sc.nextLine().split(Pattern.quote("|"));
 			
 				
-				if(i > 550000 && i < 600000 ) {
+				if(i >650000 && i < 8500000 ) {
 				try {
 					postId = trimmed[0];
 					personId = trimmed[1];
@@ -559,6 +560,298 @@ public class Utility {
 	// ***************************** //
 	// ********* REQUETES ********** //
 	// ***************************** //
+	
+	
+	/**
+	 * QUERY 1
+	 * @param personne : le client donne
+	 * @throws IOException
+	 */
+	public static void query1(String personne) throws IOException 
+	{
+		
+		// pour ses commandes
+		ArrayList<String> commandes = new ArrayList<>();
+		// pour ses commentaires
+		ArrayList<String> feedbacks = new ArrayList<>();
+				
+		/******* DEBUT : Trouver le profile du client souhaite /*******/
+
+		String queryProfile = "{\"size\":300,\"query\":{\"bool\":{\"must\":[{\"match\":{\"_id\":\""+personne+"\"}}]}}}";
+
+		String responseProfile = elasticsearch("person/_doc/_search","POST", null, queryProfile);
+		JSONObject jsonProfile = new JSONObject(responseProfile);
+		//System.out.println(jsonProfile.toString());
+		
+		// extraire son profile
+		String prenom = jsonProfile.getJSONObject("hits").getJSONArray("hits").getJSONObject(0).getJSONObject("_source").getString("firstName");		
+		String nom = jsonProfile.getJSONObject("hits").getJSONArray("hits").getJSONObject(0).getJSONObject("_source").getString("lastName");	
+		String gender = jsonProfile.getJSONObject("hits").getJSONArray("hits").getJSONObject(0).getJSONObject("_source").getString("gender");
+		
+		System.out.println(" ");
+		System.out.println("********* Le profile du client  : "+personne+" *********");
+		System.out.println(" ==> sexe : "+gender+", Prenom : "+prenom+", Nom : "+nom);
+		System.out.println(" ");
+		
+		/******* FIN : Trouver le profile du client souhaite /*******/
+		
+		/******* DEBUT : Trouver ses commandes et factres /*******/
+
+		String queryCommande = "{\"size\":300,\"query\":{\"bool\":{\"must\":[{\"match\":{\"PersonId\":\""+personne+"\"}}]}}}";
+
+		String responseCommande = elasticsearch("order/_doc/_search", "POST", null,queryCommande);
+		JSONObject jsonCommande = new JSONObject(responseCommande);
+		//System.out.println(jsonCommande.toString());
+		
+		// extraire ses commandes
+		int lengthJsoCommandes= jsonCommande.getJSONObject("hits").getJSONArray("hits").length();
+
+		for (int i=0; i<lengthJsoCommandes; i++)
+		{ 
+			commandes.add(jsonCommande.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("OrderId"));     		
+		}
+		
+		System.out.println(" ");
+		System.out.println("********* Il a fait les commandes N : *********");
+		for(String elem: commandes)
+		{
+			System.out.print (" // "+elem);
+		}	
+		
+		System.out.println(" ");
+		System.out.println(" ");
+		System.out.println("********* Il a les factures N : *********");
+		for(String elem: commandes)
+		{
+			System.out.print (" // "+elem);
+		}	
+		
+		/******* FIN : Trouver ses commandes et factres /*******/
+		
+		/******* DEBUT : Trouver ses commentaires /*******/
+
+		String queryFeedback= "{\"size\":100,\"query\":{\"bool\":{\"must\":[{\"match\":{\"personId\":\""+personne+"\"}}]}}}";
+
+		String responseFeedback = elasticsearch("feedbacks/_doc/_search", "POST", null, queryFeedback);
+		JSONObject jsonFeedback = new JSONObject(responseFeedback);
+		//System.out.println(jsonFeedback.toString());
+		
+		// extraire ses commentaires
+		int lengthJsoFeedback= jsonFeedback.getJSONObject("hits").getJSONArray("hits").length();
+
+		for (int i=0; i<lengthJsoFeedback; i++)
+		{ 
+			feedbacks.add(jsonFeedback.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("feedback"));     		
+		}
+		
+		System.out.println(" ");
+		System.out.println("********* Il a fait ces commentaires : *********");
+		for(String elem: feedbacks)
+		{
+			System.out.println (" // "+elem);
+		}	
+		
+		
+		/******* FIN : Trouver ses commentaires /*******/
+	}
+	
+	
+	/**
+	 * QUERY 2
+	 * @author : Mohamed TONZAR
+	 * @param dateDebut : la date de debut
+	 * @param dateFin : la date de fin
+	 * @param asiin : le produit
+	 * @throws IOException
+	 */
+	public static void query2(String dateDebut, String dateFin, String asiin) throws IOException
+	{
+		// pour stocker les personnes commandee ce produit pendant la periode demendee
+		ArrayList<String> personnesPeriode = new ArrayList<>();
+		// pour stocker les personnes qui ont fait des commentaires pour ce produit
+		ArrayList<String> personnesFeedback = new ArrayList<>();
+		
+
+		// pour stocker les commentaires 
+		ArrayList<String> commentaires = new ArrayList<>();
+		Set<String> setCommentaires = new HashSet<>(commentaires); /*des HashSet pour eviter les doublons*/
+
+
+		/******* DEBUT :  Recuperer les clients qui ont commande ce produit pendant cette periode *******/
+
+		// On commence par filtrer par la periode
+		String queryPeriode= "{\"size\" : 200, \"query\": {\"range\": { \"OrderDate\": { \"gte\": \""+dateDebut+"\", \"lte\" : \""+dateFin+"\" }}}}";
+
+		String responsePeriode= elasticsearch("order/_search", "POST", null, queryPeriode);
+		JSONObject jsonObjectPeriode = new JSONObject(responsePeriode);
+
+		int lenJsonObjectPeriode= jsonObjectPeriode.getJSONObject("hits").getJSONArray("hits").length();
+
+		for (int i=0; i<lenJsonObjectPeriode; i++)
+		{
+			int lenJsonObjectPeriode2 = jsonObjectPeriode.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getJSONArray("Orderline").length();
+
+			for (int j = 0; j < lenJsonObjectPeriode2 ; j++) {
+
+				// On recupere tous les produits commandee pendant cette periode
+				String asin = jsonObjectPeriode.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getJSONArray("Orderline").getJSONObject(j).getString("asin");
+
+
+				// On compare les produits de la periode avec notre produit demande en parametre
+				if (asiin.equals(asin))
+				{
+					// Si c'est notre produit, on stock ces clients dans la liste 'personnes'
+					personnesPeriode.add(jsonObjectPeriode.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("PersonId"));
+
+				}
+			}
+
+		}
+
+		/******* FIN : Recuperer les clients qui ont commande ce produit pendant cette periode *******/
+
+		/******* DEBUT :  Recuperer les personnes qui ont fait a FeedBack pour ce produit *******/
+
+		String query= "{\"size\":300,\"query\":{\"bool\":{\"must\":[{\"match\":{\"assin\":\""+asiin+"\"}}]}}}";
+
+		String response= elasticsearch("feedbacks/_search", "POST", null, query);
+		JSONObject jsonObject = new JSONObject(response);
+		int len= jsonObject.getJSONObject("hits").getJSONArray("hits").length();
+
+		for (int i=0; i<len; i++)
+		{
+			// Toutes les personnes qui ont fait un FeedBack pendant toutes les periodes
+			String feedback = jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("personId");
+
+			for(String elem: personnesFeedback)
+			{
+				// Comparer les personnes (entre la periode et le Feedback)
+				if (elem.equals(feedback))
+				{
+					// Ajouter les personnes qui ont fait un FeedBack pendant la periode demandee
+					personnesFeedback.add(jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("personId"));
+
+					System.out.println("\n\n********** Les personnes qui ont commente et acheter le produit "+asiin+" entre le : "+dateDebut+" et "+dateFin+" sont : **********");
+					System.out.println ("- "+elem);
+			
+				}
+
+			}
+			
+		
+			/******* FIN :  Recuperer les personnes qui ont fait un FeedBack et achter pour ce produit *******/
+
+		}
+	}
+	
+	/**
+	 * QUERY 3
+	 * @author : Jassim EL HAROUI
+	 * @param dateDebut : la date de debut
+	 * @param dateFin : la date de fin
+	 * @param asiin : le produit
+	 * @throws IOException
+	 */
+	public static void query3(String dateDebut, String dateFin, String asiin) throws IOException
+	{
+		// pour stocker les personnes commandee ce produit pendant la periode demendee
+		ArrayList<String> personnesPeriode = new ArrayList<>();
+		// pour stocker les personnes qui ont fait des commentaires pour ce produit
+		ArrayList<String> personnesFeedback = new ArrayList<>();
+		// pour stocker les notes
+		ArrayList<Integer> notes = new ArrayList<>();
+
+		// pour stocker les commentaires 
+		ArrayList<String> commentaires = new ArrayList<>();
+		Set<String> setCommentaires = new HashSet<>(commentaires); /*des HashSet pour eviter les doublons*/
+
+
+		/******* DEBUT :  Recuperer les clients qui ont commande ce produit pendant cette periode *******/
+
+		// On commence par filtrer par la periode
+		String queryPeriode= "{\"size\" : 200, \"query\": {\"range\": { \"OrderDate\": { \"gte\": \""+dateDebut+"\", \"lte\" : \""+dateFin+"\" }}}}";
+
+		String responsePeriode= elasticsearch("order/_search", "POST", null, queryPeriode);
+		JSONObject jsonObjectPeriode = new JSONObject(responsePeriode);
+
+		int lenJsonObjectPeriode= jsonObjectPeriode.getJSONObject("hits").getJSONArray("hits").length();
+
+		for (int i=0; i<lenJsonObjectPeriode; i++)
+		{
+			int lenJsonObjectPeriode2 = jsonObjectPeriode.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getJSONArray("Orderline").length();
+
+			for (int j = 0; j < lenJsonObjectPeriode2 ; j++) {
+
+				// On recupere tous les produits commandee pendant cette periode
+				String asin = jsonObjectPeriode.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getJSONArray("Orderline").getJSONObject(j).getString("asin");
+
+
+				// On compare les produits de la periode avec notre produit demande en parametre
+				if (asiin.equals(asin))
+				{
+					// Si c'est notre produit, on stock ces clients dans la liste 'personnes'
+					personnesPeriode.add(jsonObjectPeriode.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("PersonId"));
+
+				}
+			}
+
+		}
+
+		/******* FIN : Recuperer les clients qui ont commande ce produit pendant cette periode *******/
+
+		/******* DEBUT :  Recuperer les personnes qui ont fait un FeedBack negatif pour ce produit *******/
+
+		String query= "{\"size\":300,\"query\":{\"bool\":{\"must\":[{\"match\":{\"assin\":\""+asiin+"\"}}]}}}";
+
+		String response= elasticsearch("feedbacks/_search", "POST", null, query);
+		JSONObject jsonObject = new JSONObject(response);
+		int len= jsonObject.getJSONObject("hits").getJSONArray("hits").length();
+
+		for (int i=0; i<len; i++)
+		{
+			// Toutes les personnes qui ont fait un FeedBack pendant toutes les periodes
+			String feedback = jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("personId");
+
+			for(String elem: personnesFeedback)
+			{
+				// Comparer les personnes (entre la periode et le Feedback)
+				if (elem.equals(feedback))
+				{
+					// Ajouter les personnes qui ont fait un FeedBack pendant la periode demandee
+					personnesFeedback.add(jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("personId"));
+
+					// Tester si la note est moins de 3
+					if (jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getInt("note") <= 3)
+					{
+						// Ajouter les commentaires negatifs
+						setCommentaires.add(jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("feedback"));
+					}
+				}
+
+			}
+		}
+
+		// verifier notre liste pour l'affichage
+		if (setCommentaires.isEmpty())
+		{
+			System.out.println("");
+			System.out.println("********** OUPS !! Aucune personnes n'a poster un avis negatif pour ce produit "+asiin+" entre le : "+dateDebut+" et "+dateFin+" **********");
+
+		}
+		else
+		{
+			System.out.println("\n\n********** Les commentaires qui ont moins de 3 etoiles de "+asiin+" entre le : "+dateDebut+" et "+dateFin+" sont : **********");
+
+			for(String elem: setCommentaires)
+			{
+				System.out.println ("- "+elem);
+			}
+
+			/******* FIN :  Recuperer les personnes qui ont fait un FeedBack negatif pour ce produit *******/
+
+		}
+	}
+
 	
 	public static ArrayList<String> query4() throws IOException {
 
@@ -737,127 +1030,6 @@ public class Utility {
 		return duplicate;
 
 
-
-	}
-
-	/**** requete 7 *****/
-	public static String query7(String vendor) throws IOException {
-
-		/***Author Gasmi Zakaria*/
-
-		ArrayList<String> products = new ArrayList<>();
-		ArrayList<String> badSales = new ArrayList<>();
-		ArrayList<Feedbacks> feedbacksAll = new ArrayList<>();
-		/****recupération des produits du vendeur**/
-		String query = "{\"size\":300,\"query\":{\"bool\":{\"must\":[{\"match\":{\"brand\":\"" + vendor + "\"}}]}}}";
-
-		String response = elasticsearch("brandbyproduct/_doc/_search", "POST", null, query);
-		JSONObject jsonObject = new JSONObject(response);
-		int len = jsonObject.getJSONObject("hits").getJSONArray("hits").length();
-		for (int i = 0; i < len; i++) {
-			products.add(jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getString("_id"));
-		}
-
-		/**** fin de recupération des produits du vendeur**/
-
-		/*** calcul vente produits ***/
-
-		for (int i = 0; i < products.size(); i++) {
-			String queryFirstTrimestre = "{\"size\":0,\"query\":{\"bool\":{\"must\":[{\"match\":{\"Orderline.asin\":\""
-					+ products.get(i)
-					+ "\"}}],\"filter\":[{\"range\":{\"OrderDate\":{\"gte\":\"2020-01-01\"}}},{\"range\":{\"OrderDate\":{\"lte\":\"2020-04-01\"}}}]}},\"aggs\":{\"genres\":{\"value_count\":{\"field\":\"Orderline.asin.keyword\"}}}}";
-			String querySecondTrimestre = "{\"size\":0,\"query\":{\"bool\":{\"must\":[{\"match\":{\"Orderline.asin\":\""
-					+ products.get(i)
-					+ "\"}}],\"filter\":[{\"range\":{\"OrderDate\":{\"gte\":\"2020-04-01\"}}},{\"range\":{\"OrderDate\":{\"lte\":\"2020-07-01\"}}}]}},\"aggs\":{\"genres\":{\"value_count\":{\"field\":\"Orderline.asin.keyword\"}}}}";
-			
-			String responseFirst = elasticsearch("invoices/_doc/_search", "POST", null,  queryFirstTrimestre);
-			String responseSecond = elasticsearch("invoices/_doc/_search", "POST", null, querySecondTrimestre);
-
-			JSONObject jsonFirst = new JSONObject(responseFirst);
-			JSONObject jsonSecond = new JSONObject(responseSecond);
-
-			if (jsonFirst.getJSONObject("aggregations").getJSONObject("genres").getInt("value") > jsonSecond
-					.getJSONObject("aggregations").getJSONObject("genres").getInt("value")) {
-				badSales.add(products.get(i));
-			}
-
-		}
-
-		Iterator badIterator = badSales.iterator();
-		while (badIterator.hasNext()) {
-			String assin = badIterator.next().toString();
-			String queryNote = "{\"query\":{\"bool\":{\"must\":[{\"match\":{\"assin\":\"" + assin
-					+ "\"}}],\"filter\":[{\"range\":{\"note\":{\"lte\":\"3.0\"}}}]}}}";
-			String responseNote = elasticsearch("feedbacks/_doc/_search", "POST", null, queryNote);
-			JSONObject jsonNote = new JSONObject(responseNote);
-
-			if ((jsonNote.getJSONObject("hits").getJSONObject("total").getInt("value")) > 0) {
-				int tabNoteslen = jsonNote.getJSONObject("hits").getJSONArray("hits").length();
-				ArrayList<Feedback> feedbacksArray = new ArrayList<>();
-				for (int i = 0; i < tabNoteslen; i++) {
-					Feedback feedback = new Feedback();
-					feedback.note = jsonNote.getJSONObject("hits").getJSONArray("hits").getJSONObject(i)
-							.getJSONObject("_source").getInt("note");
-					feedback.feedback = jsonNote.getJSONObject("hits").getJSONArray("hits").getJSONObject(i)
-							.getJSONObject("_source").getString("feedback");
-					feedbacksArray.add(feedback);
-
-				}
-				Feedbacks feedbacks = new Feedbacks();
-				feedbacks.assin = assin;
-				feedbacks.feedbacks = feedbacksArray;
-				feedbacksAll.add(feedbacks);
-
-			}
-
-		}
-
-		Gson gson = new Gson();
-		return gson.toJson(feedbacksAll);
-
-	}
-
-	public static void query3(String asiin) throws IOException {
-
-		// pour stocker les personnes
-		ArrayList<String> personnes = new ArrayList<>();
-		// pour stocker les notes
-		ArrayList<Integer> notes = new ArrayList<>();
-		// pour stocker les commentaires
-		ArrayList<String> commentaires = new ArrayList<>();
-
-		// Recuperer les personnes qui ont fait un FeedBack pour ce produit
-		String query = "{\"size\":100,\"query\":{\"bool\":{\"must\":[{\"match\":{\"assin\":\"" + asiin + "\"}}]}}}";
-
-		String response = elasticsearch("feedbacks/_doc/_search", "POST", null, query);
-		JSONObject jsonObject = new JSONObject(response);
-		int len = jsonObject.getJSONObject("hits").getJSONArray("hits").length();
-
-		for (int i = 0; i < len; i++) {
-			// On ajoutes les personnes
-			personnes.add(jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i)
-					.getJSONObject("_source").getString("personId"));
-		}
-
-		System.out.println("");
-		System.out.println("********** Les personnes qui ont fait des Feedbacks pour " + asiin + " sont : **********");
-		for (String elem : personnes) {
-			System.out.print(elem + " // ");
-		}
-
-		for (int i = 0; i < len; i++) {
-			if (jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source")
-					.getInt("note") <= 3) {
-				commentaires.add(jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i)
-						.getJSONObject("_source").getString("feedback"));
-			}
-		}
-
-		System.out.println("\n********** Les commentaires qui ont moins de 3 etoiles de " + asiin + " : **********");
-
-		for (String elem : commentaires) {
-			System.out.println("- " + elem);
-		}
 
 	}
 
@@ -1082,319 +1254,12 @@ public class Utility {
 		return gson.toJson(feedbacksAll);
 
 	}
-
-	/**
-	 * QUERY 8
-	 * @param category : la categorie donnee en parametre
-	 * @param annee : l'annee donnee en parametre
-	 * @throws IOException
-	 */
-	public static void query8(String category, String annee) throws IOException {
-
-		// pour les vendeurs
-		ArrayList<String> vendeurs = new ArrayList<>();
-		// pour les prodits
-		ArrayList<String> produitsCategorie = new ArrayList<>();
-		// pour les prix
-		ArrayList<Integer> totalPrice = new ArrayList<>();
-
-		/******* DEBUT : On va recuperer tous les vendeurs de cette categorie donnee en parametre /*******/
-
-		String requeteCategorie = "{\"size\":200,\"query\":{\"bool\":{\"should\":[{\"term\":{\"industry.keyword\":\""
-				+ category + "\"}}]}}}";
-		String response = elasticsearch("vendor/_doc/_search","POST",null, requeteCategorie);
-
-		JSONObject jsonCategories = new JSONObject(response);
-		int lengthJsonCategories = jsonCategories.getJSONObject("hits").getJSONArray("hits").length();
-
-		for (int i = 0; i < lengthJsonCategories; i++) {
-
-			String categorie = jsonCategories.getJSONObject("hits").getJSONArray("hits").getJSONObject(i)
-					.getJSONObject("_source").getString("industry");
-
-			// si c'est bien la categorie demandee, on stock leurs vendeurs dans la liste vendeurs
-			if (categorie.equals(category)) {
-				vendeurs.add(jsonCategories.getJSONObject("hits").getJSONArray("hits").getJSONObject(i)
-						.getJSONObject("_source").getString("vendor"));
-			}
-		}
-
-		/******* FIN : On va recuperer tous les vendeurs de cette categorie donnee en parametre /*******/
-
-		/******* DEBUT : On va recuperer tous les produits de ces vendeurs /*******/
-
-		for (String vend : vendeurs) {
-
-			String query = "{\"size\":300,\"query\":{\"bool\":{\"must\":[{\"match\":{\"brand\":\"" + vend + "\"}}]}}}";
-
-			String respons = elasticsearch("brandbyproduct/_doc/_search", "POST", null, query);
-			JSONObject jsonProducts = new JSONObject(respons);
-
-			int lengthJsonProducts = jsonProducts.getJSONObject("hits").getJSONArray("hits").length();
-			for (int i = 0; i < lengthJsonProducts; i++) {
-				// Ajout dans la liste produits
-				produitsCategorie
-						.add(jsonProducts.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getString("_id"));
-			}
-
-		}
-
-		/*for(String elem: produits)
-		{
-		    System.out.println ("ASIN : "+elem);
-		}*/
-
-		/******* FIN : On va recuperer tous les produits de ces vendeurs /*******/
-
-		/******* DEBUT : On va recuperer toutes les ventes de l'annee donnee en parametre (annee) et ensuite recuperer le montant total de ces ventes /*******/
-
-		String queryAnnee = "{\"size\":300,\"query\":{\"bool\":{\"must\":[{\"match\":{\"OrderDate\":\"" + annee
-				+ "\"}}]}}}";
-
-		String responseAnnee = elasticsearch("order/_doc/_search", "POST", null, queryAnnee);
-		JSONObject jsonAnnee = new JSONObject(responseAnnee);
-
-		int lengthJsonAnnee = jsonAnnee.getJSONObject("hits").getJSONArray("hits").length();
-
-		for (int i = 0; i < lengthJsonAnnee; i++) {
-			// On va recuperer le length de chaque "Orderline"
-			int lengthJsonAnnee2 = jsonAnnee.getJSONObject("hits").getJSONArray("hits").getJSONObject(i)
-					.getJSONObject("_source").getJSONArray("Orderline").length();
-
-			for (int j = 0; j < lengthJsonAnnee2; j++) {
-				// On va recuperer tous les produit vendus cette annee
-				String asinAnnee = jsonAnnee.getJSONObject("hits").getJSONArray("hits").getJSONObject(i)
-						.getJSONObject("_source").getJSONArray("Orderline").getJSONObject(j).getString("asin");
-
-				// asinAnnee                 : on prend les produits vendus cette annee
-				// liste 'produitsCategorie' : on prend les produits de la categorie
-				// On va voir si ils ont les deux criteres demandee en meme temps (annee et categorie)
-				// Pour cela on va faire une comparaison
-				for (String elem : produitsCategorie) {
-					// On compare et ajoute dans la liste "totalprice"
-					if (elem == asinAnnee)
-						totalPrice.add(jsonAnnee.getJSONObject("hits").getJSONArray("hits").getJSONObject(i)
-								.getJSONObject("_source").getInt("TotalPrice"));
-				}
-			}
-
-		}
-
-		if (totalPrice.isEmpty())
-			System.out.println("OUPS !! Cette categorie : " + category + " n'a fait aucune vente en " + annee);
-
-		/*for(int elem: totalPrice)
-		{
-			System.out.println ("Motant total - "+elem);
-		}*/
-
-		/******* FIN : On va recuperer toutes les ventes de l'annee donnee en parametre (annee) et ensuite recuperer le montant total de ces ventes /*******/
-
-	}
-
-	/**
-	 * QUERY 1
-	 * @param personne : le client donne
-	 * @throws IOException
-	 */
-	public static void query1(String personne) throws IOException 
-	{
-		
-		// pour ses commandes
-		ArrayList<String> commandes = new ArrayList<>();
-		// pour ses commentaires
-		ArrayList<String> feedbacks = new ArrayList<>();
-				
-		/******* DEBUT : Trouver le profile du client souhaite /*******/
-
-		String queryProfile = "{\"size\":300,\"query\":{\"bool\":{\"must\":[{\"match\":{\"_id\":\""+personne+"\"}}]}}}";
-
-		String responseProfile = elasticsearch("person/_doc/_search","POST", null, queryProfile);
-		JSONObject jsonProfile = new JSONObject(responseProfile);
-		//System.out.println(jsonProfile.toString());
-		
-		// extraire son profile
-		String prenom = jsonProfile.getJSONObject("hits").getJSONArray("hits").getJSONObject(0).getJSONObject("_source").getString("firstName");		
-		String nom = jsonProfile.getJSONObject("hits").getJSONArray("hits").getJSONObject(0).getJSONObject("_source").getString("lastName");	
-		String gender = jsonProfile.getJSONObject("hits").getJSONArray("hits").getJSONObject(0).getJSONObject("_source").getString("gender");
-		
-		System.out.println(" ");
-		System.out.println("********* Le profile du client  : "+personne+" *********");
-		System.out.println(" ==> sexe : "+gender+", Prenom : "+prenom+", Nom : "+nom);
-		System.out.println(" ");
-		
-		/******* FIN : Trouver le profile du client souhaite /*******/
-		
-		/******* DEBUT : Trouver ses commandes et factres /*******/
-
-		String queryCommande = "{\"size\":300,\"query\":{\"bool\":{\"must\":[{\"match\":{\"PersonId\":\""+personne+"\"}}]}}}";
-
-		String responseCommande = elasticsearch("order/_doc/_search", "POST", null,queryCommande);
-		JSONObject jsonCommande = new JSONObject(responseCommande);
-		//System.out.println(jsonCommande.toString());
-		
-		// extraire ses commandes
-		int lengthJsoCommandes= jsonCommande.getJSONObject("hits").getJSONArray("hits").length();
-
-		for (int i=0; i<lengthJsoCommandes; i++)
-		{ 
-			commandes.add(jsonCommande.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("OrderId"));     		
-		}
-		
-		System.out.println(" ");
-		System.out.println("********* Il a fait les commandes N : *********");
-		for(String elem: commandes)
-		{
-			System.out.print (" // "+elem);
-		}	
-		
-		System.out.println(" ");
-		System.out.println(" ");
-		System.out.println("********* Il a les factures N : *********");
-		for(String elem: commandes)
-		{
-			System.out.print (" // "+elem);
-		}	
-		
-		/******* FIN : Trouver ses commandes et factres /*******/
-		
-		/******* DEBUT : Trouver ses commentaires /*******/
-
-		String queryFeedback= "{\"size\":100,\"query\":{\"bool\":{\"must\":[{\"match\":{\"personId\":\""+personne+"\"}}]}}}";
-
-		String responseFeedback = elasticsearch(BASE_URL+"feedbacks/_doc/_search", "POST", null, queryFeedback);
-		JSONObject jsonFeedback = new JSONObject(responseFeedback);
-		//System.out.println(jsonFeedback.toString());
-		
-		// extraire ses commentaires
-		int lengthJsoFeedback= jsonFeedback.getJSONObject("hits").getJSONArray("hits").length();
-
-		for (int i=0; i<lengthJsoFeedback; i++)
-		{ 
-			feedbacks.add(jsonFeedback.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("feedback"));     		
-		}
-		
-		System.out.println(" ");
-		System.out.println("********* Il a fait ces commentaires : *********");
-		for(String elem: feedbacks)
-		{
-			System.out.println (" // "+elem);
-		}	
-		
-		
-		/******* FIN : Trouver ses commentaires /*******/
-		
-
-		
-	}
 	
-	
-	public static void query10(String startString, String endString) {
-		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
-		format.setLenient(true);
-		try {
-			try {
-				format.parse(endString);
-			} catch (ParseException e) {
-				endString = format.format(new Date());
-			}
-
-			try {
-				format.parse(startString);
-			} catch (ParseException e) {
-				Calendar c = Calendar.getInstance();
-				c.setTime(format.parse(endString));
-				c.add(Calendar.YEAR, -1);
-				startString = format.format(c.getTime());
-			}
-
-			String requestPosts = "{\"size\" : 0, \"query\": {\"range\": { \"creationDate\": { \"gte\": \""
-					+ startString + "\", \"lte\" : \"" + endString + "\" }}"
-					+ "},\"aggs\" : {\"groupBy\" : {\"terms\" : {\"field\" : \"personId.keyword\" }}}}";
-
-			String response = elasticsearch("post/_search", "POST", null, requestPosts);
-
-			JSONObject responseObj = new JSONObject(response);
-			JSONArray buckets = responseObj.getJSONObject("aggregations").getJSONObject("groupBy")
-					.getJSONArray("buckets");
-
-			if (buckets.isEmpty()) {
-				System.out.println("Aucune personne trouvee");
-			} else {
-				Iterator it = buckets.iterator();
-				long diffLong = format.parse(endString).getTime() - format.parse(startString).getTime();
-				int diff = (int) (diffLong / (1000 * 60 * 60 * 25));
-				while (it.hasNext()) {
-					JSONObject object = (JSONObject) it.next();
-					String personId = object.getString("key");
-					int count = object.getInt("doc_count");
-
-					JSONObject personInformations = new JSONObject(
-							elasticsearch("person/_doc/" + personId, "GET", null, null));
-
-					System.out.println("***** Client avec " + count + " posts ******");
-					//System.out.println(personInformations.toString());
-					if (personInformations.getBoolean("found")) {
-						JSONObject person = personInformations.getJSONObject("_source");
-						if (person.isEmpty()) {
-							System.out.println("Les informations sur le client numero " + personId + " n'existe pas");
-
-						} else {
-							System.out.println("Id :" + person.getString("id"));
-							System.out.println("Nom : " + person.getString("firstName"));
-							System.out.println("Prenom : " + person.getString("lastName"));
-							System.out.println("Sexe : " + person.getString("gender"));
-							System.out.println("IP : " + person.getString("locationIP"));
-
-							String requestOrders = "{\"query\" : {\"bool\": {\"must\": {\"match\": "
-									+ "{\"PersonId\": \"" + personId + "\"}},\"filter\": "
-									+ "{ \"range\": {\"OrderDate\": {\"gte\": \"" + startString + "\"" + ",\"lte\" :\""
-									+ endString + "\"}}}}}," + "\"sort\" : {\"OrderDate\":\"desc\"},\"size\" : 1,"
-									+ "\"aggs\": {\"total\": {\"sum\": {\"field\": \"TotalPrice\" }}}}";
-
-							JSONObject orderInformations = new JSONObject(
-									elasticsearch("order/_search/", "POST", null, requestOrders));
-
-							int total = orderInformations.getJSONObject("hits").getJSONObject("total").getInt("value");
-
-							if (total == 0) {
-								System.out.println(
-										"Aucun Achat dans la periode entre " + startString + " et " + endString);
-							} else {
-								JSONObject dernierAchat = ((JSONObject) orderInformations.getJSONObject("hits")
-										.getJSONArray("hits").get(0)).getJSONObject("_source");
-
-								System.out.println("Recence -- Dernier Achat :");
-								System.out.println("	Id : " + dernierAchat.getString("OrderId"));
-								System.out.println("	Date : " + dernierAchat.getString("OrderDate"));
-								System.out.println("	Somme : " + dernierAchat.getDouble("TotalPrice"));
-
-								System.out.println("Frequence -- ");
-								System.out.println("	nombre d'achat : " + total + " achats");
-								System.out.println("    nombre de jours : " + diff + " jours");
-								double freq = (double) diff / total;
-								System.out.println("    frequence : Un achat chaque  " + Math.round(freq) + " jours");
-
-								System.out.println("Montant --");
-								System.out.println("	somme d'achats effectuees : " + Math.round(orderInformations
-										.getJSONObject("aggregations").getJSONObject("total").getDouble("value")));
-							}
-
-						}
-
-					} else {
-						System.out.println("Les informations sur le client numero " + personId + " n'existe pas");
-
-					}
-
-				}
-			}
-
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-
+	/** QUERY 6
+	 * @author Moussaoui Mohammed
+	 * @param personOne Client numero 1
+	 * @param personTwo Client numero 2
+	 */
 	public static void query6(String personOne, String personTwo) {
 		ArrayList<ArrayList<String>> toVisit = new ArrayList<ArrayList<String>>();
 		ArrayList<ArrayList<String>> afterItt = new ArrayList<ArrayList<String>>();
@@ -1510,6 +1375,206 @@ public class Utility {
 		}
 	}
 
+
+	
+	/**** requete 7 *****/
+	public static String query7(String vendor) throws IOException {
+
+		/***Author Gasmi Zakaria*/
+
+		ArrayList<String> products = new ArrayList<>();
+		ArrayList<String> badSales = new ArrayList<>();
+		ArrayList<Feedbacks> feedbacksAll = new ArrayList<>();
+		/****recupération des produits du vendeur**/
+		String query = "{\"size\":300,\"query\":{\"bool\":{\"must\":[{\"match\":{\"brand\":\"" + vendor + "\"}}]}}}";
+
+		String response = elasticsearch("brandbyproduct/_doc/_search", "POST", null, query);
+		JSONObject jsonObject = new JSONObject(response);
+		int len = jsonObject.getJSONObject("hits").getJSONArray("hits").length();
+		for (int i = 0; i < len; i++) {
+			products.add(jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getString("_id"));
+		}
+
+		/**** fin de recupération des produits du vendeur**/
+
+		/*** calcul vente produits ***/
+
+		for (int i = 0; i < products.size(); i++) {
+			String queryFirstTrimestre = "{\"size\":0,\"query\":{\"bool\":{\"must\":[{\"match\":{\"Orderline.asin\":\""
+					+ products.get(i)
+					+ "\"}}],\"filter\":[{\"range\":{\"OrderDate\":{\"gte\":\"2020-01-01\"}}},{\"range\":{\"OrderDate\":{\"lte\":\"2020-04-01\"}}}]}},\"aggs\":{\"genres\":{\"value_count\":{\"field\":\"Orderline.asin.keyword\"}}}}";
+			String querySecondTrimestre = "{\"size\":0,\"query\":{\"bool\":{\"must\":[{\"match\":{\"Orderline.asin\":\""
+					+ products.get(i)
+					+ "\"}}],\"filter\":[{\"range\":{\"OrderDate\":{\"gte\":\"2020-04-01\"}}},{\"range\":{\"OrderDate\":{\"lte\":\"2020-07-01\"}}}]}},\"aggs\":{\"genres\":{\"value_count\":{\"field\":\"Orderline.asin.keyword\"}}}}";
+			
+			String responseFirst = elasticsearch("invoices/_doc/_search", "POST", null,  queryFirstTrimestre);
+			String responseSecond = elasticsearch("invoices/_doc/_search", "POST", null, querySecondTrimestre);
+
+			JSONObject jsonFirst = new JSONObject(responseFirst);
+			JSONObject jsonSecond = new JSONObject(responseSecond);
+
+			if (jsonFirst.getJSONObject("aggregations").getJSONObject("genres").getInt("value") > jsonSecond
+					.getJSONObject("aggregations").getJSONObject("genres").getInt("value")) {
+				badSales.add(products.get(i));
+			}
+
+		}
+
+		Iterator badIterator = badSales.iterator();
+		while (badIterator.hasNext()) {
+			String assin = badIterator.next().toString();
+			String queryNote = "{\"query\":{\"bool\":{\"must\":[{\"match\":{\"assin\":\"" + assin
+					+ "\"}}],\"filter\":[{\"range\":{\"note\":{\"lte\":\"3.0\"}}}]}}}";
+			String responseNote = elasticsearch("feedbacks/_doc/_search", "POST", null, queryNote);
+			JSONObject jsonNote = new JSONObject(responseNote);
+
+			if ((jsonNote.getJSONObject("hits").getJSONObject("total").getInt("value")) > 0) {
+				int tabNoteslen = jsonNote.getJSONObject("hits").getJSONArray("hits").length();
+				ArrayList<Feedback> feedbacksArray = new ArrayList<>();
+				for (int i = 0; i < tabNoteslen; i++) {
+					Feedback feedback = new Feedback();
+					feedback.note = jsonNote.getJSONObject("hits").getJSONArray("hits").getJSONObject(i)
+							.getJSONObject("_source").getInt("note");
+					feedback.feedback = jsonNote.getJSONObject("hits").getJSONArray("hits").getJSONObject(i)
+							.getJSONObject("_source").getString("feedback");
+					feedbacksArray.add(feedback);
+
+				}
+				Feedbacks feedbacks = new Feedbacks();
+				feedbacks.assin = assin;
+				feedbacks.feedbacks = feedbacksArray;
+				feedbacksAll.add(feedbacks);
+
+			}
+
+		}
+
+		Gson gson = new Gson();
+		return gson.toJson(feedbacksAll);
+
+	}
+
+	
+	
+	
+	/**
+	 * QUERY 8
+	 * @author : Jassim EL HAROUI
+	 * @param category : la categorie  ==> industry dans 'vendor'
+	 * @param annee : l'annee
+	 * @throws IOException
+	 */
+	public static void query8(String category, String annee) throws IOException 
+	{
+
+		// pour les vendeurs
+		ArrayList<String> vendeurs= new ArrayList<>();
+		// pour les prodits
+		ArrayList<String> produitsCategorie= new ArrayList<>();
+		// pour les prix
+		ArrayList<Integer> totalPrice= new ArrayList<>();
+
+
+		/******* DEBUT : On va recuperer tous les vendeurs de cette categorie donnee en parametre /*******/
+
+		String requeteCategorie="{\"size\":200,\"query\":{\"bool\":{\"should\":[{\"term\":{\"industry.keyword\":\""+category+"\"}}]}}}";
+		String response=  elasticsearch("vendor/_search", "POST", null, requeteCategorie);
+
+		JSONObject jsonCategories = new JSONObject(response);
+		int lengthJsonCategories= jsonCategories.getJSONObject("hits").getJSONArray("hits").length();
+
+		for (int i = 0; i <lengthJsonCategories ; i++) {
+
+			String categorie=jsonCategories.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("industry");
+
+			// si c'est bien la categorie demandee, on stock leurs vendeurs dans la liste vendeurs
+			if (categorie.equals(category))
+			{
+				vendeurs.add(jsonCategories.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("vendor"));
+			}
+		}
+
+		/******* FIN : On va recuperer tous les vendeurs de cette categorie donnee en parametre /*******/
+
+		/******* DEBUT : On va recuperer tous les produits de ces vendeurs /*******/
+
+		for(String vend: vendeurs)
+		{
+
+			String query= "{\"size\":300,\"query\":{\"bool\":{\"must\":[{\"match\":{\"brand\":\""+vend+"\"}}]}}}";
+
+			String respons= elasticsearch("brandbyproduct/_search", "POST", null, query);
+			JSONObject jsonProducts = new JSONObject(respons);
+
+			int lengthJsonProducts= jsonProducts.getJSONObject("hits").getJSONArray("hits").length();
+			for (int i=0; i<lengthJsonProducts; i++)
+			{ 
+				// Ajout dans la liste produits
+				produitsCategorie.add(jsonProducts.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getString("_id")); 
+			}
+
+		}
+
+		/*for(String elem: produits)
+        {
+            System.out.println ("ASIN : "+elem);
+        }*/
+
+		/******* FIN : On va recuperer tous les produits de ces vendeurs /*******/
+
+
+		/******* DEBUT : On va recuperer toutes les ventes de l'annee donnee en parametre (annee) et ensuite recuperer le montant total de ces ventes /*******/
+
+		String queryAnnee= "{\"size\":300,\"query\":{\"bool\":{\"must\":[{\"match\":{\"OrderDate\":\""+annee+"\"}}]}}}";
+
+		String responseAnnee= elasticsearch("order/_search","POST", null, queryAnnee);
+		JSONObject jsonAnnee = new JSONObject(responseAnnee);
+
+		int lengthJsonAnnee= jsonAnnee.getJSONObject("hits").getJSONArray("hits").length();
+
+		for (int i=0; i<lengthJsonAnnee; i++)
+		{ 
+			// On va recuperer le length de chaque "Orderline"
+			int lengthJsonAnnee2 = jsonAnnee.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getJSONArray("Orderline").length();
+
+			for (int j=0; j < lengthJsonAnnee2; j++)
+			{
+				// On va recuperer tous les produit vendus cette annee
+				String asinAnnee = jsonAnnee.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getJSONArray("Orderline").getJSONObject(j).getString("asin");
+
+				// asinAnnee                 : on prend les produits vendus cette annee
+				// liste 'produitsCategorie' : on prend les produits de la categorie
+				// On va voir si ils ont les deux criteres demandee en meme temps (annee et categorie)
+				// Pour cela on va faire une comparaison
+				for(String elem: produitsCategorie)
+				{
+					// On compare et ajoute dans la liste "totalprice"
+					if (elem == asinAnnee)
+						totalPrice.add(jsonAnnee.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getInt("TotalPrice"));     		
+				}
+			}
+
+		}
+
+		if (totalPrice.isEmpty())
+			System.out.println("OUPS !! Cette categorie : "+category+" n'a fait aucune vente en "+annee);
+
+		/*for(int elem: totalPrice)
+		{
+			System.out.println ("Motant total - "+elem);
+		}*/
+
+		/******* FIN : On va recuperer toutes les ventes de l'annee donnee en parametre (annee) et ensuite recuperer le montant total de ces ventes /*******/
+
+
+	}
+	
+	/**
+	 * @author Moussaoui Mohammed
+	 * @param country
+	 * @param count
+	 * @param lastPostsNumber
+	 */
 	public static void query9(String country, int count, int lastPostsNumber) {
 
 		if (count == 0) {
@@ -1670,4 +1735,133 @@ public class Utility {
 		}
 
 	}
+	
+	/**
+	 * @author Moussaoui Mohammed
+	 * @param startString
+	 * @param endString
+	 */
+	public static void query10(String startString, String endString) {
+		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+		format.setLenient(true);
+		try {
+			try {
+				format.parse(endString);
+			} catch (ParseException e) {
+				endString = format.format(new Date());
+			}
+
+			try {
+				format.parse(startString);
+			} catch (ParseException e) {
+				Calendar c = Calendar.getInstance();
+				c.setTime(format.parse(endString));
+				c.add(Calendar.YEAR, -1);
+				startString = format.format(c.getTime());
+			}
+
+			String requestPosts = "{\"size\" : 0, \"query\": {\"range\": { \"creationDate\": { \"gte\": \""
+					+ startString + "\", \"lte\" : \"" + endString + "\" }}"
+					+ "},\"aggs\" : {\"groupBy\" : {\"terms\" : {\"field\" : \"personId.keyword\" }}}}";
+
+			String response = elasticsearch("post/_search", "POST", null, requestPosts);
+
+			JSONObject responseObj = new JSONObject(response);
+			JSONArray buckets = responseObj.getJSONObject("aggregations").getJSONObject("groupBy")
+					.getJSONArray("buckets");
+
+			if (buckets.isEmpty()) {
+				System.out.println("Aucune personne trouvee");
+			} else {
+				Iterator it = buckets.iterator();
+				long diffLong = format.parse(endString).getTime() - format.parse(startString).getTime();
+				int diff = (int) (diffLong / (1000 * 60 * 60 * 25));
+				while (it.hasNext()) {
+					JSONObject object = (JSONObject) it.next();
+					String personId = object.getString("key");
+					int count = object.getInt("doc_count");
+
+					JSONObject personInformations = new JSONObject(
+							elasticsearch("person/_doc/" + personId, "GET", null, null));
+
+					System.out.println("***** Client avec " + count + " posts ******");
+					//System.out.println(personInformations.toString());
+					if (personInformations.getBoolean("found")) {
+						JSONObject person = personInformations.getJSONObject("_source");
+						if (person.isEmpty()) {
+							System.out.println("Les informations sur le client numero " + personId + " n'existe pas");
+
+						} else {
+							System.out.println("Id :" + person.getString("id"));
+							System.out.println("Nom : " + person.getString("firstName"));
+							System.out.println("Prenom : " + person.getString("lastName"));
+							System.out.println("Sexe : " + person.getString("gender"));
+							System.out.println("IP : " + person.getString("locationIP"));
+
+							String requestOrders = "{\"query\" : {\"bool\": {\"must\": {\"match\": "
+									+ "{\"PersonId\": \"" + personId + "\"}},\"filter\": "
+									+ "{ \"range\": {\"OrderDate\": {\"gte\": \"" + startString + "\"" + ",\"lte\" :\""
+									+ endString + "\"}}}}}," + "\"sort\" : {\"OrderDate\":\"desc\"},\"size\" : 1,"
+									+ "\"aggs\": {\"total\": {\"sum\": {\"field\": \"TotalPrice\" }}}}";
+
+							JSONObject orderInformations = new JSONObject(
+									elasticsearch("order/_search/", "POST", null, requestOrders));
+
+							int total = orderInformations.getJSONObject("hits").getJSONObject("total").getInt("value");
+
+							if (total == 0) {
+								System.out.println(
+										"Aucun Achat dans la periode entre " + startString + " et " + endString);
+							} else {
+								JSONObject dernierAchat = ((JSONObject) orderInformations.getJSONObject("hits")
+										.getJSONArray("hits").get(0)).getJSONObject("_source");
+
+								System.out.println("Recence -- Dernier Achat :");
+								System.out.println("	Id : " + dernierAchat.getString("OrderId"));
+								System.out.println("	Date : " + dernierAchat.getString("OrderDate"));
+								System.out.println("	Somme : " + dernierAchat.getDouble("TotalPrice"));
+
+								System.out.println("Frequence -- ");
+								System.out.println("	nombre d'achat : " + total + " achats");
+								System.out.println("    nombre de jours : " + diff + " jours");
+								double freq = (double) diff / total;
+								System.out.println("    frequence : Un achat chaque  " + Math.round(freq) + " jours");
+
+								System.out.println("Montant --");
+								System.out.println("	somme d'achats effectuees : " + Math.round(orderInformations
+										.getJSONObject("aggregations").getJSONObject("total").getDouble("value")));
+							}
+
+							
+							String tagsRequest = "{ \"size\" : 1000, \"query\": { \"match\" : { \"personId\" : \"%s\" } } }";
+							String feedbacksRequest = "{ \"size\" : 3, \"query\": { \"match\" : { \"personId\" : \"%s\" } } }";
+							
+							try {
+								String tagsResponse = elasticsearch("", "POST", null, String.format(tagsRequest, person.getString("id")));
+								JSONArray tags = new JSONObject(tagsResponse).getJSONObject("hits").getJSONArray("hits");
+								if(tags.length() > 0) {
+									
+								} else {
+									System.out.println("Aucun tag trouve");
+								}
+							} catch (Exception e) {
+								System.out.println("Aucun tag trouve");
+							}
+						}
+
+					} else {
+						System.out.println("Les informations sur le client numero " + personId + " n'existe pas");
+
+					}
+
+				}
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	
+	
 }
