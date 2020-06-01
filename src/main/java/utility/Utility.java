@@ -684,6 +684,8 @@ public class Utility {
 
 		String responsePeriode= elasticsearch("order/_search", "POST", null, queryPeriode);
 		JSONObject jsonObjectPeriode = new JSONObject(responsePeriode);
+		
+		System.out.println("\n\n********** Les personnes qui ont commente et acheter le produit "+asiin+" entre le : "+dateDebut+" et "+dateFin+" sont : **********");
 
 		int lenJsonObjectPeriode= jsonObjectPeriode.getJSONObject("hits").getJSONArray("hits").length();
 
@@ -701,8 +703,9 @@ public class Utility {
 				if (asiin.equals(asin))
 				{
 					// Si c'est notre produit, on stock ces clients dans la liste 'personnes'
-					personnesPeriode.add(jsonObjectPeriode.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("PersonId"));
-
+					String personId = jsonObjectPeriode.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("PersonId");
+					personnesPeriode.add(personId);
+					System.out.println("- " + personId);
 				}
 			}
 
@@ -713,34 +716,21 @@ public class Utility {
 		/******* DEBUT :  Recuperer les personnes qui ont fait a FeedBack pour ce produit *******/
 
 		String query= "{\"size\":300,\"query\":{\"bool\":{\"must\":[{\"match\":{\"assin\":\""+asiin+"\"}}]}}}";
-
 		String response= elasticsearch("feedbacks/_search", "POST", null, query);
 		JSONObject jsonObject = new JSONObject(response);
 		int len= jsonObject.getJSONObject("hits").getJSONArray("hits").length();
+
 
 		for (int i=0; i<len; i++)
 		{
 			// Toutes les personnes qui ont fait un FeedBack pendant toutes les periodes
 			String feedback = jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("personId");
 
-			for(String elem: personnesFeedback)
-			{
-				// Comparer les personnes (entre la periode et le Feedback)
-				if (elem.equals(feedback))
-				{
-					// Ajouter les personnes qui ont fait un FeedBack pendant la periode demandee
-					personnesFeedback.add(jsonObject.getJSONObject("hits").getJSONArray("hits").getJSONObject(i).getJSONObject("_source").getString("personId"));
-
-					System.out.println("\n\n********** Les personnes qui ont commente et acheter le produit "+asiin+" entre le : "+dateDebut+" et "+dateFin+" sont : **********");
-					System.out.println ("- "+elem);
+			// Ajouter les personnes qui ont fait un FeedBack pendant la periode demandee
+			personnesFeedback.add(feedback);
+			System.out.println ("- "+feedback);	
 			
-				}
-
-			}
-			
-		
 			/******* FIN :  Recuperer les personnes qui ont fait un FeedBack et achter pour ce produit *******/
-
 		}
 	}
 	
