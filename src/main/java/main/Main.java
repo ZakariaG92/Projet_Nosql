@@ -17,9 +17,9 @@ public class Main {
 
 		//Utility.addPersonToPosts("C:\\Users\\Moussaoui\\Documents\\cours-univ-ecole\\S8\\BigData\\PROJET_NOSQL_2019_2020\\DATA\\SocialNetwork\\post_hasCreator_person_0_0.csv");
 		
-		Utility.loadPersonHasInterestTag("C:\\Users\\Moussaoui\\Documents\\cours-univ-ecole\\S8\\BigData\\PROJET_NOSQL_2019_2020\\DATA\\SocialNetwork\\post_hasTag_tag_0_0.csv");
+		//Utility.loadPersonHasInterestTag("C:\\Users\\Moussaoui\\Documents\\cours-univ-ecole\\S8\\BigData\\PROJET_NOSQL_2019_2020\\DATA\\SocialNetwork\\post_hasTag_tag_0_0.csv");
 		
-		//Utility.query10("2010-01-01", "2012-01-01");
+		//Utility.query10("2010-01-01", "2022-01-01");
 
 		//Utility.query6("8796093023726", "8796093027528");
 
